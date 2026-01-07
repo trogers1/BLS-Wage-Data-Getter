@@ -1,3 +1,6 @@
+**/generated/
+pgdata/
+
 # Logs
 logs
 *.log
