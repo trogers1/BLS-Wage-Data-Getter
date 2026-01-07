@@ -1,0 +1,6 @@
+#!/usr/bin/env sh
+
+echo "🔧 Running Prettier formatting check..."
+bun run format:check
+
+echo "✅ Pre-commit checks passed!"

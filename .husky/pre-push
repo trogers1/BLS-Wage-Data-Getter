@@ -1,0 +1,6 @@
+#!/usr/bin/env sh
+
+echo "🧪 Running tests before push..."
+bun run test
+
+echo "✅ Tests passed! Ready to push."
