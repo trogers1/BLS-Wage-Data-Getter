@@ -1,0 +1,207 @@
+= BLS Wage Data Getter
+:toc:
+
+A TypeScript application for fetching and storing wage data from the U.S. Bureau of Labor Statistics (BLS) Occupational Employment and Wage Statistics (OEWS) API.
+
+== Overview
+
+This project crawls BLS wage data by SOC (Standard Occupational Classification) and NAICS (North American Industry Classification System) codes, storing the results in a PostgreSQL database for analysis and reporting.
+
+== Features
+
+* Fetches SOC codes from BLS API
+* Retrieves NAICS codes with hierarchical structure
+* Crawls wage data for SOC/NAICS combinations
+* Stores data in PostgreSQL with proper schema
+* Type-safe validation using TypeBox schemas
+* Automated database migrations with Kysely
+
+== Project Structure
+
+[source,text]
+----
+src/
+├── db/
+│   ├── migrations/           # Database schema migrations
+│   ├── index.ts             # Database connection setup
+│   └── migrate.ts           # Migration runner
+├── schemas/
+│   ├── index.ts             # TypeBox schemas
+│   ├── validate.ts          # Response validation
+│   └── validation.test.ts   # Schema tests
+└── scripts/
+    ├── get_socs.ts          # Fetch SOC codes
+    ├── get_naics.ts         # Fetch NAICS codes
+    ├── crawl_wages.ts       # Crawl wage data
+    └── test_db_connection.ts
+----
+
+== Database Schema
+
+* `soc_codes` - Standard Occupational Classification codes
+* `naics_codes` - NAICS codes with hierarchical levels
+* `oews_series` - BLS series metadata
+* `wages` - Annual wage data by series and year
+
+== Prerequisites
+
+* Bun runtime
+* Docker & Docker Compose
+* BLS API key (register at https://data.bls.gov/registrationEngine/)
+
+== Setup
+
+. Clone the repository
+. Install dependencies:
++
+[source,bash]
+----
+bun install
+----
++
+. Copy environment variables:
++
+[source,bash]
+----
+cp .env.example .env
+----
++
+. Edit `.env` and add your BLS API key:
++
+[source]
+----
+BLS_API_KEY=your_api_key_here
+----
++
+
+
+== Usage
+
+. Start the database:
++
+[source,bash]
+----
+bun run db:setup
+----
++
+This command:
++ 
+* Starts PostgreSQL container
+* Runs database migrations
+* Generates TypeScript types
++
+. Test database connection:
++
+[source,bash]
+----
+bun run db:test:conn
+----
++
+. Fetch SOC codes (if you haven't done so recently):
++
+[source,bash]
+----
+bun run get:socs
+----
++
+. Fetch NAICS codes (if you haven't done so recently):
++
+[source,bash]
+----
+bun run get:naics
+----
++
+. Crawl wage data (this should resume where you left off if you didn't complete your crawl last time):
++
+[source,bash]
+----
+bun run crawl
+----
++
+. Explore the data with something like https://www.beekeeperstudio.io/[Beekeeper] or https://www.pgadmin.org/[pgAdmin]. You can use the config in `.env.example` to connect to the local database.
+. Spin down the database when you're finished
++
+[source,bash]
+----
+bun run db:down
+----
+
+
+== Development
+
+* Format code:
++
+[source,bash]
+----
+bun run format
+----
++
+* Run tests:
++
+[source,bash]
+----
+bun run test
+----
++
+* Run tests with coverage:
++
+[source,bash]
+----
+bun run test:coverage
+----
+
+
+== Database Management
+
+Start database:
+
+[source,bash]
+----
+bun run db:up
+----
+
+Stop database:
+
+[source,bash]
+----
+bun run db:down
+----
+
+View database logs:
+
+[source,bash]
+----
+bun run db:logs
+----
+
+Run migrations:
+
+[source,bash]
+----
+bun run db:migrate
+----
+
+Generate TypeScript types:
+
+[source,bash]
+----
+bun run db:codegen
+----
+
+== Environment Variables
+
+* `BLS_API_KEY` - BLS API key (required)
+* `DATABASE_URL` - PostgreSQL connection URL (defaults to local Docker container)
+
+== Technologies
+
+* **Runtime**: Bun
+* **Database**: PostgreSQL with Kysely ORM
+* **Validation**: TypeBox schemas
+* **Testing**: Vitest
+* **Formatting**: Prettier
+* **Git Hooks**: Husky
+
+== License
+
+MIT
