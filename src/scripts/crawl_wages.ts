@@ -15,6 +15,8 @@ function createSeriesId({ soc, naics }: { soc: string; naics: string }) {
 
 const socs = await db.selectFrom("soc_codes").select("soc_code").execute();
 
+const BATCH_SIZE = 50;
+
 for (const { soc_code } of socs) {
   let queue = await db
     .selectFrom("naics_codes")
@@ -23,23 +25,34 @@ for (const { soc_code } of socs) {
     .execute();
 
   while (queue.length) {
-    const naics = queue.pop()!;
+    const batch: typeof queue = [];
+    const seriesIds: string[] = [];
+    const naicsBatch: typeof queue = [];
 
-    const sid = createSeriesId({ soc: soc_code, naics: naics.naics_code });
+    while (queue.length && batch.length < BATCH_SIZE) {
+      const naics = queue.pop()!;
+      const sid = createSeriesId({ soc: soc_code, naics: naics.naics_code });
 
-    const known = await db
-      .selectFrom("oews_series")
-      .select("exists")
-      .where("series_id", "=", sid)
-      .executeTakeFirst();
+      const known = await db
+        .selectFrom("oews_series")
+        .select("exists")
+        .where("series_id", "=", sid)
+        .executeTakeFirst();
 
-    if (known) continue;
+      if (known) continue;
+
+      batch.push(naics);
+      seriesIds.push(sid);
+      naicsBatch.push(naics);
+    }
+
+    if (seriesIds.length === 0) continue;
 
     const res = await fetch(API_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        seriesid: [sid],
+        seriesid: seriesIds,
         startyear: "2023",
         endyear: "2023",
         registrationkey: API_KEY,
@@ -51,44 +64,51 @@ for (const { soc_code } of socs) {
       TimeseriesResponse,
       res,
       json,
-      `timeseries data for ${sid}`
+      `timeseries data for batch of ${seriesIds.length} series`
     );
-    const found = validated.Results.series.length > 0;
 
-    await db
-      .insertInto("oews_series")
-      .values({
-        series_id: sid,
-        soc_code,
-        naics_code: naics.naics_code,
-        exists: found ? 1 : 0,
-        last_checked: new Date().toISOString(),
-      })
-      .execute();
+    const seriesResults = new Map(
+      validated.Results.series.map((s) => [s.seriesID, s])
+    );
 
-    if (!found) continue;
+    for (let i = 0; i < naicsBatch.length; i++) {
+      const naics = naicsBatch[i];
+      const sid = seriesIds[i];
+      const series = seriesResults.get(sid);
+      const found = !!series;
 
-    const data = validated.Results.series[0].data;
-    if (data.length) {
       await db
-        .insertInto("wages")
+        .insertInto("oews_series")
         .values({
           series_id: sid,
-          year: Number(data[0].year),
-          mean_annual_wage: Number(data[0].value),
+          soc_code,
+          naics_code: naics.naics_code,
+          exists: found,
+          last_checked: new Date().toISOString(),
         })
-        .onConflict((oc) => oc.doNothing())
-        .execute();
-    }
-
-    if (naics.level < 6) {
-      const children = await db
-        .selectFrom("naics_codes")
-        .selectAll()
-        .where("parent_code", "=", naics.naics_code)
         .execute();
 
-      queue.push(...children);
+      if (found && series.data.length) {
+        await db
+          .insertInto("wages")
+          .values({
+            series_id: sid,
+            year: Number(series.data[0].year),
+            mean_annual_wage: Number(series.data[0].value),
+          })
+          .onConflict((oc) => oc.doNothing())
+          .execute();
+      }
+
+      if (found && naics.level < 6) {
+        const children = await db
+          .selectFrom("naics_codes")
+          .selectAll()
+          .where("parent_code", "=", naics.naics_code)
+          .execute();
+
+        queue.push(...children);
+      }
     }
   }
 }
