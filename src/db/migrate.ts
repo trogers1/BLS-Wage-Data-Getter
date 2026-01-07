@@ -1,9 +1,9 @@
-import { db } from "./index.ts";
+import { db as dbWithTypes } from "./index";
 import { FileMigrationProvider, Migrator } from "kysely";
 import { promises as fs } from "fs";
 import path from "path";
 
-async function migrateToLatest() {
+export async function migrateToLatest({ db }: { db: typeof dbWithTypes }) {
   const migrator = new Migrator({
     db,
     provider: new FileMigrationProvider({
@@ -34,5 +34,3 @@ async function migrateToLatest() {
 
   await db.destroy();
 }
-
-migrateToLatest();
