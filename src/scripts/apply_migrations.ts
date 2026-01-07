@@ -1,4 +1,10 @@
 import { db } from "../db";
 import { migrateToLatest } from "../db/migrate";
 
-migrateToLatest({ db });
+async function applyMigrations() {
+  await migrateToLatest({ db });
+
+  await db.destroy();
+}
+
+applyMigrations();

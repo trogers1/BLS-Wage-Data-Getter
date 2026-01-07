@@ -31,6 +31,4 @@ export async function migrateToLatest({ db }: { db: typeof dbWithTypes }) {
     console.error(resultError);
     process.exit(1);
   }
-
-  await db.destroy();
 }

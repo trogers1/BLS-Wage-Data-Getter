@@ -1,92 +1,99 @@
-import { PostgreSqlContainer } from "@testcontainers/postgresql";
+import {
+  PostgreSqlContainer,
+  StartedPostgreSqlContainer,
+} from "@testcontainers/postgresql";
 import { Kysely, PostgresDialect } from "kysely";
 import { Pool } from "pg";
-import { fileURLToPath } from "url";
-import { dirname, join } from "path";
-import { readFileSync } from "fs";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-export interface Database {
-  soc_codes: {
-    soc_code: string;
-    title: string;
-  };
-  naics_codes: {
-    naics_code: string;
-    title: string;
-    level: number;
-    parent_code: string | null;
-  };
-  oews_series: {
-    series_id: string;
-    soc_code: string;
-    naics_code: string;
-    exists: boolean;
-    last_checked: Date;
-  };
-  wages: {
-    series_id: string;
-    year: number;
-    mean_annual_wage: number;
-  };
-}
+import { DB } from "../db/generated/db";
+import { migrateToLatest } from "../db/migrate";
 
 export class TestDbManager {
-  private container: PostgreSqlContainer | null = null;
-  private db: Kysely<Database> | null = null;
-  private connectionUrl: string | null = null;
+  private container: StartedPostgreSqlContainer | null = null;
+  private baseConnectionUrl: string | null = null;
+  private testDbs: Map<string, Kysely<DB>> = new Map();
 
   async start(): Promise<string> {
-    this.container = await new PostgreSqlContainer("postgres:16")
-      .withDatabase("testdb")
+    const container = await new PostgreSqlContainer("postgres:16")
+      .withDatabase("postgres") // Use default database to create others
       .withUsername("testuser")
       .withPassword("testpass")
       .start();
+    this.container = container;
 
-    this.connectionUrl = this.container.getConnectionUri();
+    this.baseConnectionUrl = this.container.getConnectionUri();
+
+    return this.baseConnectionUrl;
+  }
+
+  private async runMigrations(db: Kysely<DB>): Promise<void> {
+    await migrateToLatest({ db });
+  }
+
+  private async createDatabase(dbName: string): Promise<void> {
+    if (!this.baseConnectionUrl) {
+      throw new Error("Container not started");
+    }
+
+    const adminPool = new Pool({
+      connectionString: this.baseConnectionUrl,
+    });
+
+    try {
+      await adminPool.query(`CREATE DATABASE "${dbName}"`);
+    } finally {
+      await adminPool.end();
+    }
+  }
+
+  private async getConnectionUrlForDb(dbName: string): Promise<string> {
+    if (!this.baseConnectionUrl) {
+      throw new Error("Container not started");
+    }
+
+    // Replace the database name in the connection URL
+    const url = new URL(this.baseConnectionUrl);
+    url.pathname = `/${dbName}`;
+    return url.toString();
+  }
+
+  async getTestDb(testId: string): Promise<Kysely<DB>> {
+    if (this.testDbs.has(testId)) {
+      return this.testDbs.get(testId)!;
+    }
+
+    const dbName = `testdb_${testId.replace(/[^a-zA-Z0-9_]/g, "_")}`;
+
+    // Create the database
+    await this.createDatabase(dbName);
+
+    // Get connection URL for the new database
+    const connectionUrl = await this.getConnectionUrlForDb(dbName);
 
     // Create Kysely instance
     const pool = new Pool({
-      connectionString: this.connectionUrl,
+      connectionString: connectionUrl,
     });
 
-    this.db = new Kysely<Database>({
+    const db = new Kysely<DB>({
       dialect: new PostgresDialect({ pool }),
     });
 
-    // Run migrations
-    await this.runMigrations();
+    // Run migrations on the new database
+    await this.runMigrations(db);
 
-    return this.connectionUrl;
+    // Store the database instance
+    this.testDbs.set(testId, db);
+
+    return db;
   }
 
-  async runMigrations(): Promise<void> {
-    if (!this.db) {
-      throw new Error("Database not initialized");
-    }
-
-    // Read and execute the migration file
-    const migrationPath = join(
-      __dirname,
-      "../db/migrations/20260106155742_init.ts"
-    );
-    const migrationModule = await import(migrationPath);
-
-    await migrationModule.up(this.db);
+  async createAndSeedTestDb(testId: string): Promise<Kysely<DB>> {
+    const db = await this.getTestDb(testId);
+    await this.seedTestData(db);
+    return db;
   }
 
-  getDb(): Kysely<Database> {
-    if (!this.db) {
-      throw new Error("Database not initialized");
-    }
-    return this.db;
-  }
-
-  async seedTestData(): Promise<void> {
-    const db = this.getDb();
-
+  async seedTestData(db: Kysely<DB>): Promise<void> {
     // Seed SOC codes
     await db
       .insertInto("soc_codes")
@@ -163,9 +170,7 @@ export class TestDbManager {
       .execute();
   }
 
-  async clearTestData(): Promise<void> {
-    const db = this.getDb();
-
+  async clearTestData(db: Kysely<DB>): Promise<void> {
     await db.deleteFrom("wages").execute();
     await db.deleteFrom("oews_series").execute();
     await db.deleteFrom("naics_codes").execute();
@@ -173,21 +178,31 @@ export class TestDbManager {
   }
 
   async stop(): Promise<void> {
-    if (this.db) {
-      await this.db.destroy();
-      this.db = null;
+    // Clean up all test database connections
+    for (const db of this.testDbs.values()) {
+      await db.destroy();
     }
+    this.testDbs.clear();
 
     if (this.container) {
       await this.container.stop();
       this.container = null;
     }
 
-    this.connectionUrl = null;
+    this.baseConnectionUrl = null;
   }
 
-  async reset(): Promise<void> {
-    await this.clearTestData();
-    await this.seedTestData();
+  async resetTestDb(testId: string): Promise<void> {
+    const db = await this.getTestDb(testId);
+    await this.clearTestData(db);
+    await this.seedTestData(db);
+  }
+
+  async cleanupTestDb(testId: string): Promise<void> {
+    const db = this.testDbs.get(testId);
+    if (db) {
+      await db.destroy();
+      this.testDbs.delete(testId);
+    }
   }
 }

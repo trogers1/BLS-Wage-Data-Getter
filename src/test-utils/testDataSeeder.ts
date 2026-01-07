@@ -1,8 +1,8 @@
 import { Kysely } from "kysely";
-import { Database } from "./test-db-manager";
+import { DB } from "../db/generated/db";
 
 export class TestDataSeeder {
-  constructor(private db: Kysely<Database>) {}
+  constructor(private db: Kysely<DB>) {}
 
   async seedAll(): Promise<void> {
     await this.seedSocCodes();
