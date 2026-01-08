@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { SocResponse, NaicsResponse, TimeseriesResponse } from "./index";
-import { validate, ValidationError } from "./validate";
+import { SocResponse, NaicsResponse, TimeseriesResponse } from "./index.ts";
+import { validate, ValidationError } from "./validate.ts";
 
 describe("TypeBox Validation", () => {
   describe("SOC Response Validation", () => {

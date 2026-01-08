@@ -23,7 +23,7 @@ export async function up(db: Kysely<any>) {
     .addColumn("series_id", "text", (col) => col.primaryKey())
     .addColumn("soc_code", "text", (col) => col.notNull())
     .addColumn("naics_code", "text", (col) => col.notNull())
-    .addColumn("exists", "boolean", (col) => col.notNull())
+    .addColumn("does_exist", "boolean", (col) => col.notNull())
     .addColumn("last_checked", "timestamptz", (col) => col.notNull())
     .addForeignKeyConstraint("fk_series_soc", ["soc_code"], "soc_codes", [
       "soc_code",

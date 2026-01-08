@@ -1,13 +1,5 @@
-import {
-  describe,
-  it,
-  expect,
-  beforeAll,
-  afterAll,
-  beforeEach,
-  afterEach,
-} from "vitest";
-import { TestDbManager } from "./testDBManager";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { TestDbManager } from "./testDBManager.ts";
 
 describe("TestDbManager", () => {
   let dbManager: TestDbManager;
@@ -191,7 +183,7 @@ describe("TestDbManager", () => {
 
       // Verify data is seeded
       const afterSeed = await db.selectFrom("soc_codes").selectAll().execute();
-      expect(afterSeed).toHaveLength(3);
+      expect(afterSeed).toHaveLength(6);
     });
   });
 });

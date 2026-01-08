@@ -1,6 +1,7 @@
-import { db } from "../db/index.ts";
+import { getDbInstance } from "../db/index.ts";
 
 async function testConnection() {
+  const db = getDbInstance();
   try {
     const result = await db
       .selectFrom("soc_codes")

@@ -6,7 +6,7 @@
     "db:up": "docker-compose up -d",
     "db:down": "docker-compose down",
     "db:logs": "docker-compose logs -f",
-    "db:migrate": "node --loader ts-node/esm scripts/apply_migrations.ts",
+    "db:migrate": "node --loader ts-node/esm src/scripts/apply_migrations.ts",
     "db:codegen": "kysely-codegen --dialect postgres --url postgres://oews:oews@localhost:5432/oews --out-file src/db/generated/db.d.ts",
     "db:setup": "npm run db:up && npm run db:migrate && npm run db:codegen",
     "db:test:conn": "node --loader ts-node/esm src/scripts/test_db_connection.ts",
@@ -15,9 +15,9 @@
     "test": "env-cmd -f .env.test vitest",
     "test:watch": "env-cmd -f .env.test vitest --watch",
     "test:coverage": "env-cmd -f .env.test vitest --coverage",
-    "get:socs": "node --loader ts-node/esm src/scripts/get_socs.ts",
-    "get:naics": "node --loader ts-node/esm src/scripts/get_naics.ts",
-    "crawl": "node --loader ts-node/esm src/scripts/crawl_wages.ts",
+    "get:socs": "node --loader ts-node/esm src/scripts/get_socs/run.ts",
+    "get:naics": "node --loader ts-node/esm src/scripts/get_naics/run.ts",
+    "crawl": "node --loader ts-node/esm src/scripts/crawl_wages/run.ts",
     "prepare": "husky"
   },
   "dependencies": {
