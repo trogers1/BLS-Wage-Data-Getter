@@ -1,0 +1,109 @@
+= deterministicRandom
+:toc:
+
+Utilities for creating production-like test data that is _realistic_, _repeatable_, and _debuggable_.
+
+Avoids `Math.random()` in favor of _deterministic randomness_: "random-looking" variety derived purely from a seed string.
+
+Key helper: `./dRandom.ts`
+
+== The Problem
+
+I hate hard-coding in tests. It's flaky and gets in the way of testing what you ACTUALLY want to test: the integrity of your data and its relationships.
+
+Hard-coded data seeds for tests are also terrible--they break easily and are hard to keep up to date with your code changes and data model changes because they're (usually) .CSVs or SQL and are not tightly coupled with the strict typing of your codebase.
+
+Hard-coded data sets are also only as good at testing random edge cases as the person (or LLM) who wrote them. And it's very hard to do that well. And consistently well across time while the data model and edge cases change.
+
+But I want production-like data at production-like quantities. So what can we do???
+
+Deterministic-random-ness is the answer.
+
+== What it is
+
+* Provide a stable seed string
+* Hash the seed to produce a number (DJB2 algorithm)
+* Use that number to pick from options (`oneOf`), generate integers (`randomInt`), or shuffle arrays (`shuffle`)
+* Same seed → same output; different seed → different output
+
+**Not cryptographically secure -- goal is stable variability**, not unpredictability.
+
+== Why use it?
+
+* Reproducible datasets 
+** Re-run a seed to get identical data
+* Enforced focus on testing behavior and relationships 
+** Not specific hard-coded cases
+* Fewer flaky tests 
+** Variety without nondeterministic failures
+* Stable diffs 
+** Output changes only from code, schema, or seed changes
+* Production-like data 
+** Realistic shape/variability without copying sensitive production data
+
+== Core idea: compose seeds
+
+Derive per‑entity seeds by concatenating stable identifiers:
+
+[source,typescript]
+----
+const baseSeed = "test-id";
+const userSeed = baseSeed + "-user-" + userId;
+const postSeed = userSeed + "-post-" + postId;
+----
+
+This ensures adding a new user doesn't reshuffle unrelated users, and adding a new post doesn't change the randomness of other posts.
+
+== Quick example
+
+[source,typescript]
+----
+import { oneOf, randomInt, shuffle } from "./dRandom.ts";
+
+const baseSeed = "blog-demo";
+
+// Create users
+const users = Array.from({ length: 10 }).map((_, i) => ({
+  id: `user-${i}`,
+  name: oneOf({
+    seed: `${baseSeed}-user-${i}-name`,
+    options: ["Alice", "Bob", "Charlie", "Dana"],
+  }),
+  age: randomInt({ seed: `${baseSeed}-user-${i}-age`, min: 18, max: 65 }),
+}));
+
+// Shuffle a list
+const shuffled = shuffle({
+  randomSeed: baseSeed + "-ordering",
+  options: users,
+});
+----
+
+== Overriding fields with functions
+
+Allow fields to be literal values or functions of the seed:
+
+[source,typescript]
+----
+const user = {
+  id: "user-1",
+  name: (seed: string) => `User ${seed.slice(0, 6)}`,
+  isAdmin: (seed: string) => seed.length % 2 === 0,
+};
+----
+
+Helpers for this pattern are in `./overridableFieldHelpers.ts`.
+
+== Recommended practices
+
+. Use stable IDs - avoid relying solely on array indices
+. Derive seeds from meaningful identifiers (`userId`, `postId`, etc.)
+. Keep structure stable, values variable - vary counts, flags, categories
+. Avoid global reshuffles - scope randomness narrowly
+. Version your seeding code if exact reproducibility matters long‑term
+
+== Gotchas
+
+* Deterministic randomness is stable only for a given algorithm + inputs. Code changes can change outputs.
+* Avoid seeds based solely on list position if you plan to insert/remove items later.
+* Intended for tests/dev/staging environments, not production databases.
