@@ -42,7 +42,7 @@ export class TestDataSeeder {
         }),
         soc_code: example.soc_code,
         naics_code: naicsCode,
-        exists: true,
+        does_exist: true,
         last_checked: new Date(),
       }))
     );

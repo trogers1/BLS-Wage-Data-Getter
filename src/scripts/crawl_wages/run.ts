@@ -1,9 +1,19 @@
 import { getDbInstance } from "../../db/index.ts";
 import { getWages, insertWagesIntoDb } from "./utils.ts";
 
-const wages = await getWages();
-
 const db = getDbInstance();
-await insertWagesIntoDb({ db, wages });
+
+// Get wages for the last 5 years
+const currentYear = new Date().getFullYear();
+const startYear = currentYear - 5;
+const endYear = currentYear;
+
+const { wages, oewsSeries } = await getWages({
+  db,
+  startYear,
+  endYear,
+});
+
+await insertWagesIntoDb({ db, wages, oewsSeries });
 await db.destroy();
-console.log("SOC codes loaded");
+console.log("Wage data loaded");
