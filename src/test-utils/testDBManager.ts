@@ -27,7 +27,7 @@ export class TestDbManager {
   }
 
   private async runMigrations(db: Kysely<DB>): Promise<void> {
-    await migrateToLatest({ db });
+    await migrateToLatest({ db, exitOnError: false });
   }
 
   private async createDatabase(dbName: string): Promise<void> {
@@ -94,9 +94,26 @@ export class TestDbManager {
     return db;
   }
 
+  async createAndSeedTestDbDeterministic(
+    testId: string,
+    baseSeed: string
+  ): Promise<Kysely<DB>> {
+    const db = await this.getTestDb(testId);
+    await this.seedTestDataDeterministic(db, baseSeed);
+    return db;
+  }
+
   async seedTestData(db: Kysely<DB>): Promise<void> {
     const seeder = new TestDataSeeder(db);
     await seeder.seedAll();
+  }
+
+  async seedTestDataDeterministic(
+    db: Kysely<DB>,
+    baseSeed: string
+  ): Promise<void> {
+    const seeder = new TestDataSeeder(db);
+    await seeder.seedDeterministic(baseSeed);
   }
 
   async clearTestData(db: Kysely<DB>): Promise<void> {
