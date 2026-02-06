@@ -5,8 +5,10 @@ import path from "path";
 
 export async function migrateToLatest({
   db,
+  exitOnError = true,
 }: {
   db: ReturnType<typeof getDbInstance>;
+  exitOnError?: boolean;
 }) {
   const migrator = new Migrator({
     db,
@@ -33,6 +35,10 @@ export async function migrateToLatest({
     console.error("Failed to migrate");
     console.error(error);
     console.error(resultError);
-    process.exit(1);
+    if (exitOnError) {
+      process.exit(1);
+    } else {
+      throw error || new Error(resultError);
+    }
   }
 }
