@@ -45,7 +45,8 @@ src/
 
 == Prerequisites
 
-* Bun runtime
+* Node.js (see `.nvmrc` for the recommended version)
+** Node.js version should include TypeScript type stripping support (scripts execute .ts files directly via node; use a Node version that supports this or set NODE_OPTIONS=--experimental-strip-types)
 * Docker & Docker Compose
 * BLS API key (register at https://data.bls.gov/registrationEngine/)
 
@@ -56,7 +57,7 @@ src/
 +
 [source,bash]
 ----
-bun install
+npm install
 ----
 +
 . Copy environment variables:
@@ -81,7 +82,7 @@ BLS_API_KEY=your_api_key_here
 +
 [source,bash]
 ----
-bun run db:setup
+npm run db:setup
 ----
 +
 This command:
@@ -94,28 +95,28 @@ This command:
 +
 [source,bash]
 ----
-bun run db:test:conn
+npm run db:test:conn
 ----
 +
 . Fetch SOC codes (if you haven't done so recently):
 +
 [source,bash]
 ----
-bun run get:socs
+npm run get:socs
 ----
 +
 . Fetch NAICS codes (if you haven't done so recently):
 +
 [source,bash]
 ----
-bun run get:naics
+npm run get:naics
 ----
 +
 . Crawl wage data (this should resume where you left off if you didn't complete your crawl last time):
 +
 [source,bash]
 ----
-bun run crawl
+npm run crawl
 ----
 +
 . Explore the data with something like https://www.beekeeperstudio.io/[Beekeeper] or https://www.pgadmin.org/[pgAdmin]. You can use the config in `.env.example` to connect to the local database.
@@ -123,7 +124,7 @@ bun run crawl
 +
 [source,bash]
 ----
-bun run db:down
+npm run db:down
 ----
 
 
@@ -133,21 +134,23 @@ bun run db:down
 +
 [source,bash]
 ----
-bun run format
+npm run format
 ----
 +
 * Run tests:
 +
 [source,bash]
 ----
-bun run test
+npm run test
 ----
 +
+NOTE: Use `npm run test` (not `npx vitest`) so env-cmd loads `.env.test`; Vitest expects env vars to be preloaded by the script.
+
 * Run tests with coverage:
 +
 [source,bash]
 ----
-bun run test:coverage
+npm run test:coverage
 ----
 
 
@@ -157,45 +160,46 @@ Start database:
 
 [source,bash]
 ----
-bun run db:up
+npm run db:up
 ----
 
 Stop database:
 
 [source,bash]
 ----
-bun run db:down
+npm run db:down
 ----
 
 View database logs:
 
 [source,bash]
 ----
-bun run db:logs
+npm run db:logs
 ----
 
 Run migrations:
 
 [source,bash]
 ----
-bun run db:migrate
+npm run db:migrate
 ----
 
 Generate TypeScript types:
 
 [source,bash]
 ----
-bun run db:codegen
+npm run db:codegen
 ----
 
 == Environment Variables
 
 * `BLS_API_KEY` - BLS API key (required)
 * `DATABASE_URL` - PostgreSQL connection URL (defaults to local Docker container)
+* Tests load `.env.test` via env-cmd in the npm script; running Vitest directly will skip this
 
 == Technologies
 
-* **Runtime**: Bun
+* **Runtime**: Node.js
 * **Database**: PostgreSQL with Kysely ORM
 * **Validation**: TypeBox schemas
 * **Testing**: Vitest
