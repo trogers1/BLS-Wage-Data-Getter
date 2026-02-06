@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { SocResponse, NaicsResponse, TimeseriesResponse } from "./index.ts";
+import { SocResponse, NaicsResponse, TimeseriesResponse } from "./schemas.ts";
 import { validate, ValidationError } from "./validate.ts";
 
 describe("TypeBox Validation", () => {

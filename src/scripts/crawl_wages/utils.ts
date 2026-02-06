@@ -1,6 +1,6 @@
 import { getDbInstance } from "../../db/index.ts";
 import type { Wages } from "../../db/generated/db.d.ts";
-import { TimeseriesResponse } from "../../schemas/index.ts";
+import { TimeseriesResponse } from "../../schemas/schemas.ts";
 import { validateResponse } from "../../schemas/validate.ts";
 import { API_BASE_URL, WAGE_API_PATH } from "../constants.ts";
 

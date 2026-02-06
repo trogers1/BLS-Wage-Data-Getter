@@ -9,7 +9,7 @@ import {
   afterAll,
 } from "vitest";
 import nock from "nock";
-import { TimeseriesResponseType } from "../../schemas/index.ts";
+import { TimeseriesResponseType } from "../../schemas/schemas.ts";
 import { TestDbManager } from "../../test-utils/testDBManager.ts";
 import {
   BLSWageRequestBody,
