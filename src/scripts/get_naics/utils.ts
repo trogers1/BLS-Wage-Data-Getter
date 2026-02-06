@@ -1,6 +1,6 @@
 import { getDbInstance } from "../../db/index.ts";
 import type { NaicsCodes } from "../../db/generated/db.d.ts";
-import { NaicsResponse } from "../../schemas/index.ts";
+import { NaicsResponse } from "../../schemas/schemas.ts";
 import { validateResponse } from "../../schemas/validate.ts";
 
 export async function getNaics(): Promise<NaicsCodes[]> {
@@ -21,15 +21,24 @@ export async function getNaics(): Promise<NaicsCodes[]> {
 
   const naics: NaicsCodes[] = [];
   for (const n of validated.industries) {
-    const level = n.code.length;
-    if (level >= 2 && level <= 6) {
-      naics.push({
-        naics_code: n.code,
-        title: n.text,
-        level,
-        parent_code: level > 2 ? n.code.slice(0, level - 1) : null,
-      });
+    const isRange = /^\d{2}-\d{2}$/.test(n.code);
+    const level = isRange ? 2 : n.code.length;
+    if (level < 2 || level > 6) {
+      continue;
     }
+
+    const isValidFormat = /^\d{2,6}$/.test(n.code) || isRange;
+
+    if (!isValidFormat) {
+      throw new Error(`Invalid NAICS code format: ${n.code}`);
+    }
+
+    naics.push({
+      naics_code: n.code,
+      title: n.text,
+      level,
+      parent_code: level > 2 ? n.code.slice(0, level - 1) : null,
+    });
   }
   return naics;
 }

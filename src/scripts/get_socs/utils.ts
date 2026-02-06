@@ -1,4 +1,4 @@
-import { SocResponse, SocResponseType } from "../../schemas/index.ts";
+import { SocResponse } from "../../schemas/schemas.ts";
 import { validateResponse } from "../../schemas/validate.ts";
 import { getDbInstance } from "../../db/index.ts";
 import type { SocCodes } from "../../db/generated/db.d.ts";
