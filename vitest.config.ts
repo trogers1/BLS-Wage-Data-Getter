@@ -21,6 +21,8 @@ export default defineConfig({
       shuffle: false,
       concurrent: false,
     },
+    // Increase hook timeout for testcontainer startup and migrations
+    hookTimeout: 60000,
     coverage: {
       provider: "v8",
       reporter: ["text", "json", "html"],
