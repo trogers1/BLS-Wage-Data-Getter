@@ -1,4 +1,5 @@
 import { getDbInstance } from "../db/index.ts";
+import { log } from "../utils/logger.ts";
 
 async function testConnection() {
   const db = getDbInstance();
@@ -8,8 +9,8 @@ async function testConnection() {
       .selectAll()
       .limit(1)
       .execute();
-    console.log("Database connection successful");
-    console.log("Sample data:", result);
+    log("Database connection successful");
+    log("Sample data:", result);
   } catch (error) {
     console.error("Database connection failed:", error);
   } finally {

@@ -2,6 +2,7 @@ import { getDbInstance } from "./index.ts";
 import { FileMigrationProvider, Migrator } from "kysely";
 import { promises as fs } from "fs";
 import path from "path";
+import { log } from "../utils/logger.ts";
 
 export async function migrateToLatest({
   db,
@@ -24,7 +25,7 @@ export async function migrateToLatest({
 
   results?.forEach((it) => {
     if (it.status === "Success") {
-      console.log(`Migration "${it.migrationName}" was executed successfully`);
+      log(`Migration "${it.migrationName}" was executed successfully`);
     } else if (it.status === "Error") {
       console.error(`Failed to execute migration "${it.migrationName}"`);
       resultError = `${it.status}: ${it.migrationName}`;

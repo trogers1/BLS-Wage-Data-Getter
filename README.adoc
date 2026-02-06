@@ -1,17 +1,17 @@
 = BLS Wage Data Getter
 :toc:
 
-A TypeScript application for fetching and storing wage data from the U.S. Bureau of Labor Statistics (BLS) Occupational Employment and Wage Statistics (OEWS) API.
+A TypeScript application for downloading and storing wage data from the U.S. Bureau of Labor Statistics (BLS) Occupational Employment and Wage Statistics (OEWS) bulk files.
 
 == Overview
 
-This project crawls BLS wage data by SOC (Standard Occupational Classification) and NAICS (North American Industry Classification System) codes, storing the results in a PostgreSQL database for analysis and reporting.
+This project loads BLS OEWS data by SOC (Standard Occupational Classification) and NAICS (North American Industry Classification System) codes from the bulk time series files, storing the results in a PostgreSQL database for analysis and reporting.
 
 == Features
 
-* Fetches SOC codes from BLS API
-* Retrieves NAICS codes with hierarchical structure
-* Crawls wage data for SOC/NAICS combinations
+* Downloads OEWS bulk files and caches them locally
+* Parses OEWS mapping files for SOCs, industries, areas, and datatypes
+* Loads OEWS series metadata and data values into PostgreSQL
 * Stores data in PostgreSQL with proper schema
 * Type-safe validation using TypeBox schemas
 * Automated database migrations with Kysely
@@ -34,15 +34,18 @@ src/
     ├── apply_migrations.ts  # Run migrations via script
     ├── constants.ts         # Shared script constants
     ├── test_db_connection.ts
+    ├── bulk/
+    │   ├── download.ts       # Download OEWS bulk files
+    │   ├── ingest_mappings.ts # Load mapping tables
+    │   ├── ingest_series.ts   # Load OEWS series metadata
+    │   ├── ingest_data.ts     # Load OEWS data values
+    │   └── run.ts             # Download + ingest end-to-end
     ├── get_socs/
     │   ├── run.ts            # Fetch SOC codes
     │   └── utils.ts
     ├── get_naics/
     │   ├── run.ts            # Fetch NAICS codes
     │   └── utils.ts
-    └── crawl_wages/
-        ├── run.ts            # Crawl wage data
-        └── utils.ts
 └── test-utils/
     ├── testDBManager.ts       # Test database lifecycle helpers
     └── testDataSeeder/
@@ -56,17 +59,25 @@ src/
 
 == Database Schema
 
-* `soc_codes` - Standard Occupational Classification codes
-* `naics_codes` - NAICS codes with hierarchical levels
-* `oews_series` - BLS series metadata
-* `wages` - Annual wage data by series and year
+* `soc_codes` - Standard Occupational Classification codes (normalized)
+* `naics_codes` - NAICS codes with hierarchical levels (normalized)
+* `oe_occupations` - OEWS occupation mapping file
+* `oe_industries` - OEWS industry mapping file
+* `oe_areas` - OEWS area mapping file
+* `oe_areatypes` - OEWS area types
+* `oe_datatypes` - OEWS data type definitions
+* `oe_footnotes` - OEWS footnote definitions
+* `oe_releases` - OEWS release metadata
+* `oe_seasonal` - OEWS seasonality definitions
+* `oe_sectors` - OEWS sector definitions
+* `oe_series` - OEWS series metadata (bulk file)
+* `oe_data` - OEWS data values (bulk file)
 
 == Prerequisites
 
 * Node.js (see `.nvmrc` for the recommended version)
 ** Node.js version should include TypeScript type stripping support (scripts execute .ts files directly via node; use a Node version that supports this or set NODE_OPTIONS=--experimental-strip-types)
 * Docker & Docker Compose
-* BLS API key (register at https://data.bls.gov/registrationEngine/)
 
 == Setup
 
@@ -83,13 +94,6 @@ npm install
 [source,bash]
 ----
 cp .env.example .env
-----
-+
-. Edit `.env` and add your BLS API key:
-+
-[source]
-----
-BLS_API_KEY=your_api_key_here
 ----
 +
 
@@ -116,25 +120,42 @@ This command:
 npm run db:test:conn
 ----
 +
-. Fetch SOC codes (if you haven't done so recently):
+. Download and ingest OEWS bulk files:
++
+[source,bash]
+----
+npm run bulk:ingest
+----
++
+. This will download the latest OEWS files and load mappings, series metadata, and data values into the database.
++
+. Use the mapping tables to interpret codes in `oe_series` and `oe_data`:
++
+[source,sql]
+----
+select
+  s.series_id,
+  o.occupation_name,
+  i.industry_name,
+  d.datatype_name,
+  a.area_name,
+  s.series_title,
+  s.begin_year,
+  s.end_year
+from oe_series s
+join oe_occupations o on o.occupation_code = s.occupation_code
+join oe_industries i on i.industry_code = s.industry_code
+join oe_datatypes d on d.datatype_code = s.datatype_code
+join oe_areas a on a.area_code = s.area_code and a.state_code = s.state_code
+limit 25;
+----
++
+. The bulk ingest also populates normalized SOC and NAICS tables. You can refresh those tables independently:
 +
 [source,bash]
 ----
 npm run get:socs
-----
-+
-. Fetch NAICS codes (if you haven't done so recently):
-+
-[source,bash]
-----
 npm run get:naics
-----
-+
-. Crawl wage data (this should resume where you left off if you didn't complete your crawl last time):
-+
-[source,bash]
-----
-npm run crawl
 ----
 +
 . Explore the data with something like https://www.beekeeperstudio.io/[Beekeeper] or https://www.pgadmin.org/[pgAdmin]. You can use the config in `.env.example` to connect to the local database.
@@ -211,7 +232,6 @@ npm run db:codegen
 
 == Environment Variables
 
-* `BLS_API_KEY` - BLS API key (required)
 * `DATABASE_URL` - PostgreSQL connection URL (defaults to local Docker container)
 * Tests load `.env.test` via env-cmd in the npm script; running Vitest directly will skip this
 

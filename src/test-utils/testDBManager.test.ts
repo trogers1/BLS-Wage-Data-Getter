@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { TestDbManager } from "./testDBManager.ts";
+import { log } from "../utils/logger.ts";
 
 describe("TestDbManager", () => {
   let dbManager: TestDbManager;
@@ -122,7 +123,7 @@ describe("TestDbManager", () => {
       // Verify only seeded data exists
       const afterReset = await db.selectFrom("soc_codes").selectAll().execute();
 
-      console.log({ afterReset });
+      log({ afterReset });
 
       expect(afterReset).toHaveLength(beforeReset.length - 1);
       expect(afterReset.map((c) => c.soc_code)).not.toContain(uniqueSocCode);

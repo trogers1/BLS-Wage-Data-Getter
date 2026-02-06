@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { SocResponse, NaicsResponse, TimeseriesResponse } from "./schemas.ts";
+import { SocResponse, NaicsResponse } from "./schemas.ts";
 import { validate, ValidationError } from "./validate.ts";
 
 describe("TypeBox Validation", () => {
@@ -70,89 +70,6 @@ describe("TypeBox Validation", () => {
       expect(() => validate(NaicsResponse, invalidNaicsData)).toThrow(
         ValidationError
       );
-    });
-  });
-
-  describe("Timeseries Response Validation", () => {
-    it("should validate valid timeseries response", () => {
-      const validTimeseriesData = {
-        status: "REQUEST_SUCCEEDED",
-        responseTime: 123,
-        message: [],
-        Results: {
-          series: [
-            {
-              seriesID: "OEUN0000000110001110103",
-              data: [
-                {
-                  year: "2023",
-                  period: "A01",
-                  periodName: "Annual",
-                  value: "123456",
-                  footnotes: [{ code: "P", text: "Preliminary" }],
-                },
-              ],
-            },
-          ],
-        },
-      };
-
-      const validated = validate(
-        TimeseriesResponse,
-        validTimeseriesData,
-        "Timeseries test"
-      );
-      expect(validated.status).toBe("REQUEST_SUCCEEDED");
-      expect(validated.Results.series).toHaveLength(1);
-      expect(validated.Results.series[0].seriesID).toBe(
-        "OEUN0000000110001110103"
-      );
-      expect(validated.Results.series[0].data[0].year).toBe("2023");
-    });
-
-    it("should validate timeseries response with empty data", () => {
-      const validTimeseriesData = {
-        status: "REQUEST_SUCCEEDED",
-        responseTime: 0,
-        message: ["No data available"],
-        Results: {
-          series: [],
-        },
-      };
-
-      const validated = validate(TimeseriesResponse, validTimeseriesData);
-      expect(validated.Results.series).toHaveLength(0);
-      expect(validated.message).toContain("No data available");
-    });
-
-    it("should reject timeseries response with invalid status", () => {
-      const invalidTimeseriesData = {
-        status: "INVALID_STATUS",
-        responseTime: 123,
-        message: [],
-        Results: {
-          series: [],
-        },
-      };
-
-      expect(() => validate(TimeseriesResponse, invalidTimeseriesData)).toThrow(
-        ValidationError
-      );
-    });
-
-    it("should accept REQUEST_FAILED status", () => {
-      const validTimeseriesData = {
-        status: "REQUEST_FAILED",
-        responseTime: 123,
-        message: ["Error message"],
-        Results: {
-          series: [],
-        },
-      };
-
-      const validated = validate(TimeseriesResponse, validTimeseriesData);
-      expect(validated.status).toBe("REQUEST_FAILED");
-      expect(validated.message).toContain("Error message");
     });
   });
 

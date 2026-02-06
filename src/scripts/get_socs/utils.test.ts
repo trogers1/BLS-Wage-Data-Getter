@@ -9,12 +9,12 @@ import {
   afterAll,
 } from "vitest";
 import nock from "nock";
-import { SocResponseType } from "../../schemas/schemas.ts";
+import { BLS_OE_BULK_BASE_URL } from "../constants.ts";
 import { TestDbManager } from "../../test-utils/testDBManager.ts";
 import { getSocs, insertSocsIntoDb } from "./utils.ts";
 
 describe("get_socs/utils", () => {
-  const API_URL = "https://api.bls.gov";
+  const API_URL = BLS_OE_BULK_BASE_URL;
   let dbManager: TestDbManager;
 
   beforeAll(async () => {
@@ -37,81 +37,76 @@ describe("get_socs/utils", () => {
 
   describe("getSocs", () => {
     it("should fetch and parse SOC codes from BLS API", async () => {
-      const mockResponse: SocResponseType = {
-        occupations: [
-          { code: "11-1011", text: "Chief Executives" },
-          { code: "15-1252", text: "Software Developers" },
-          { code: "29-1141", text: "Registered Nurses" },
-          { code: "99-9999", text: "Invalid code" }, // Should be filtered out
-        ],
-      };
+      const mockResponse = [
+        "occupation_code\toccupation_name\tdisplay_level\tselectable\tsort_sequence",
+        "111011\tChief Executives\t3\tT\t001",
+        "151252\tSoftware Developers\t3\tT\t002",
+        "291141\tRegistered Nurses\t3\tT\t003",
+        "999999\tInvalid code\t3\tT\t004",
+      ].join("\n");
 
-      nock(API_URL)
-        .get("/publicAPI/v2/surveys/OEWS/occupations/")
-        .reply(200, mockResponse);
+      nock(API_URL).get("/oe.occupation").reply(200, mockResponse);
 
       const socs = await getSocs();
 
-      const expectedSocs = mockResponse.occupations.map((occupation) => ({
-        soc_code: occupation.code,
-        title: occupation.text,
-      }));
+      const expectedSocs = [
+        { soc_code: "11-1011", title: "Chief Executives" },
+        { soc_code: "15-1252", title: "Software Developers" },
+        { soc_code: "29-1141", title: "Registered Nurses" },
+        { soc_code: "99-9999", title: "Invalid code" },
+      ];
       expect(socs).toHaveLength(expectedSocs.length); // All have valid SOC code format
       expect(socs).toEqual(expectedSocs);
     });
 
     it("should throw error when API request fails", async () => {
-      nock(API_URL)
-        .get("/publicAPI/v2/surveys/OEWS/occupations/")
-        .reply(500, { error: "Internal server error" });
+      nock(API_URL).get("/oe.occupation").reply(500, "Internal server error");
 
-      await expect(getSocs()).rejects.toThrow("SOC codes API");
+      await expect(getSocs()).rejects.toThrow("Failed getSocs request");
     });
 
     it("should throw error when response validation fails", async () => {
       nock(API_URL)
-        .get("/publicAPI/v2/surveys/OEWS/occupations/")
-        .reply(200, { invalid: "data" });
+        .get("/oe.occupation")
+        .reply(200, "occupation_code\toccupation_name");
 
-      await expect(getSocs()).rejects.toThrow("SOC codes API");
+      await expect(getSocs()).rejects.toThrow(
+        "Unexpected SOC occupation headers"
+      );
     });
 
     it("should filter out non-standard SOC codes", async () => {
-      const mockResponse: SocResponseType = {
-        occupations: [
-          { code: "11-1011", text: "Chief Executives" },
-          { code: "11-101", text: "Invalid format" }, // Too short
-          { code: "11-10111", text: "Too long" }, // Too long
-          { code: "AB-1011", text: "Non-numeric" }, // Non-numeric
-          { code: "11-ABCD", text: "Non-numeric" }, // Non-numeric
-        ],
-      };
+      const mockResponse = [
+        "occupation_code\toccupation_name\tdisplay_level\tselectable\tsort_sequence",
+        "111011\tChief Executives\t3\tT\t001",
+        "11101\tInvalid format\t3\tT\t002",
+        "1110111\tToo long\t3\tT\t003",
+        "AB1011\tNon-numeric\t3\tT\t004",
+        "11ABCD\tNon-numeric\t3\tT\t005",
+      ].join("\n");
 
-      nock(API_URL)
-        .get("/publicAPI/v2/surveys/OEWS/occupations/")
-        .reply(200, mockResponse);
+      nock(API_URL).get("/oe.occupation").reply(200, mockResponse);
 
       const socs = await getSocs();
-      const expectedSocs = mockResponse.occupations
-        .filter((occupation) => /^\d{2}-\d{4}$/.test(occupation.code))
-        .map((occupation) => ({
-          soc_code: occupation.code,
-          title: occupation.text,
-        }));
+      const expectedSocs = [
+        {
+          soc_code: "11-1011",
+          title: "Chief Executives",
+        },
+      ];
       expect(socs).toHaveLength(expectedSocs.length);
       expect(socs).toEqual(expectedSocs);
     });
 
     it("should return empty array for empty API response", async () => {
-      const mockResponse: SocResponseType = { occupations: [] };
+      const mockResponse =
+        "occupation_code\toccupation_name\tdisplay_level\tselectable\tsort_sequence";
 
-      nock(API_URL)
-        .get("/publicAPI/v2/surveys/OEWS/occupations/")
-        .reply(200, mockResponse);
+      nock(API_URL).get("/oe.occupation").reply(200, mockResponse);
 
       const socs = await getSocs();
 
-      expect(socs).toHaveLength(mockResponse.occupations.length);
+      expect(socs).toHaveLength(0);
       expect(socs).toEqual([]);
     });
   });
@@ -225,20 +220,17 @@ describe("get_socs/utils", () => {
     it("should fetch from API and insert into database", async () => {
       const db = await dbManager.getTestDb("integration-test");
 
-      const mockResponse: SocResponseType = {
-        occupations: [
-          { code: "11-1011", text: "Chief Executives" },
-          { code: "15-1252", text: "Software Developers" },
-        ],
-      };
+      const mockResponse = [
+        "occupation_code\toccupation_name\tdisplay_level\tselectable\tsort_sequence",
+        "111011\tChief Executives\t3\tT\t001",
+        "151252\tSoftware Developers\t3\tT\t002",
+      ].join("\n");
 
-      nock(API_URL)
-        .get("/publicAPI/v2/surveys/OEWS/occupations/")
-        .reply(200, mockResponse);
+      nock(API_URL).get("/oe.occupation").reply(200, mockResponse);
 
       // Fetch SOC codes
       const socs = await getSocs();
-      expect(socs).toHaveLength(mockResponse.occupations.length);
+      expect(socs).toHaveLength(2);
 
       // Insert into database
       await insertSocsIntoDb({ socs, db });

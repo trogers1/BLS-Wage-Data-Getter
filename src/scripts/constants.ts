@@ -1,3 +1,2 @@
-export const API_BASE_URL = "https://api.bls.gov";
-
-export const WAGE_API_PATH = `/publicAPI/v2/timeseries/data/`;
+export const BLS_OE_BULK_BASE_URL =
+  "https://download.bls.gov/pub/time.series/oe";

@@ -1,12 +1,7 @@
 import { Kysely } from "kysely";
 import type { DB, NaicsCodes, SocCodes } from "../../db/generated/db.d.ts";
-import {
-  SOC_CODES,
-  NAICS_CODES,
-  SERIES_EXAMPLES,
-  WAGE_EXAMPLES,
-} from "./constants.ts";
-import { oneOf, randomInt, shuffle } from "./deterministicRandom/dRandom.ts";
+import { SOC_CODES, NAICS_CODES } from "./constants.ts";
+import { oneOf, randomInt } from "./deterministicRandom/dRandom.ts";
 
 export class TestDataSeeder {
   constructor(private db: Kysely<DB>) {}
@@ -14,15 +9,11 @@ export class TestDataSeeder {
   async seedAll(): Promise<void> {
     await this.seedSocCodes();
     await this.seedNaicsCodes();
-    await this.seedOewsSeries();
-    await this.seedWages();
   }
 
   async seedDeterministic(baseSeed: string): Promise<void> {
     await this.seedSocCodesDeterministic(baseSeed);
     await this.seedNaicsCodesDeterministic(baseSeed);
-    await this.seedOewsSeriesDeterministic(baseSeed);
-    await this.seedWagesDeterministic(baseSeed);
   }
 
   async seedSocCodes(): Promise<void> {
@@ -41,47 +32,7 @@ export class TestDataSeeder {
       .execute();
   }
 
-  async seedOewsSeries(): Promise<void> {
-    const seriesData = SERIES_EXAMPLES.flatMap((example) =>
-      example.naics_codes.map((naicsCode) => ({
-        series_id: this.generateSeriesId({
-          socCode: example.soc_code,
-          naicsCode: naicsCode,
-        }),
-        soc_code: example.soc_code,
-        naics_code: naicsCode,
-        does_exist: true,
-        last_checked: new Date(),
-      }))
-    );
-
-    await this.db
-      .insertInto("oews_series")
-      .values(seriesData)
-      .onConflict((oc) => oc.column("series_id").doNothing())
-      .execute();
-  }
-
-  async seedWages(): Promise<void> {
-    const wageData = WAGE_EXAMPLES.map((example) => ({
-      series_id: this.generateSeriesId({
-        socCode: example.soc_code,
-        naicsCode: example.naics_code,
-      }),
-      year: example.year,
-      mean_annual_wage: example.mean_annual_wage,
-    }));
-
-    await this.db
-      .insertInto("wages")
-      .values(wageData)
-      .onConflict((oc) => oc.doNothing())
-      .execute();
-  }
-
   async clearAll(): Promise<void> {
-    await this.db.deleteFrom("wages").execute();
-    await this.db.deleteFrom("oews_series").execute();
     await this.db.deleteFrom("naics_codes").execute();
     await this.db.deleteFrom("soc_codes").execute();
   }
@@ -204,106 +155,5 @@ export class TestDataSeeder {
       .values(naicsCodes)
       .onConflict((oc) => oc.column("naics_code").doNothing())
       .execute();
-  }
-
-  async seedOewsSeriesDeterministic(baseSeed: string): Promise<void> {
-    // Get existing SOC and NAICS codes from database
-    const socs = await this.db.selectFrom("soc_codes").selectAll().execute();
-    const naics = await this.db.selectFrom("naics_codes").selectAll().execute();
-
-    const seriesData = [];
-    for (const soc of socs) {
-      // Pick 1-5 NAICS codes per SOC
-      const naicsCount = randomInt({
-        seed: `${baseSeed}-series-count-${soc.soc_code}`,
-        min: 1,
-        max: 5,
-      });
-      const shuffledNaics = shuffle({
-        randomSeed: `${baseSeed}-shuffle-${soc.soc_code}`,
-        options: naics,
-      });
-      const selectedNaics = shuffledNaics.slice(0, naicsCount);
-
-      for (const naicsCode of selectedNaics) {
-        const doesExist =
-          randomInt({
-            seed: `${baseSeed}-exists-${soc.soc_code}-${naicsCode.naics_code}`,
-            min: 0,
-            max: 1,
-          }) === 1;
-        seriesData.push({
-          series_id: this.generateSeriesId({
-            socCode: soc.soc_code,
-            naicsCode: naicsCode.naics_code,
-          }),
-          soc_code: soc.soc_code,
-          naics_code: naicsCode.naics_code,
-          does_exist: doesExist,
-          last_checked: new Date(),
-        });
-      }
-    }
-
-    await this.db
-      .insertInto("oews_series")
-      .values(seriesData)
-      .onConflict((oc) => oc.column("series_id").doNothing())
-      .execute();
-  }
-
-  async seedWagesDeterministic(baseSeed: string): Promise<void> {
-    const series = await this.db
-      .selectFrom("oews_series")
-      .selectAll()
-      .where("does_exist", "=", true)
-      .execute();
-
-    const wages = [];
-    for (const s of series) {
-      // Generate 1-3 years of wage data
-      const yearCount = randomInt({
-        seed: `${baseSeed}-yearcount-${s.series_id}`,
-        min: 1,
-        max: 3,
-      });
-      const startYear = randomInt({
-        seed: `${baseSeed}-startyear-${s.series_id}`,
-        min: 2020,
-        max: 2023,
-      });
-
-      for (let i = 0; i < yearCount; i++) {
-        const year = startYear + i;
-        const meanWage = randomInt({
-          seed: `${baseSeed}-wage-${s.series_id}-${year}`,
-          min: 30000,
-          max: 250000,
-        });
-        wages.push({
-          series_id: s.series_id,
-          year,
-          mean_annual_wage: meanWage,
-        });
-      }
-    }
-
-    await this.db
-      .insertInto("wages")
-      .values(wages)
-      .onConflict((oc) => oc.doNothing())
-      .execute();
-  }
-
-  private generateSeriesId({
-    socCode,
-    naicsCode,
-  }: {
-    socCode: SocCodes["soc_code"];
-    naicsCode: NaicsCodes["naics_code"];
-  }): string {
-    const socPart = socCode.replace("-", "");
-    const naicsPart = naicsCode.replace("-", "").padStart(6, "0");
-    return `OEUN${naicsPart}${socPart}03`;
   }
 }

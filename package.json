@@ -20,7 +20,11 @@
     "test:coverage": "env-cmd -f .env.test vitest --coverage",
     "get:socs": "env-cmd -f .env node src/scripts/get_socs/run.ts",
     "get:naics": "env-cmd -f .env node src/scripts/get_naics/run.ts",
-    "crawl": "env-cmd -f .env node src/scripts/crawl_wages/run.ts",
+    "bulk:download": "env-cmd -f .env node src/scripts/bulk/download.ts",
+    "bulk:ingest:mappings": "env-cmd -f .env node src/scripts/bulk/ingest_mappings.ts",
+    "bulk:ingest:series": "env-cmd -f .env node src/scripts/bulk/ingest_series.ts",
+    "bulk:ingest:data": "env-cmd -f .env node src/scripts/bulk/ingest_data.ts",
+    "bulk:ingest": "env-cmd -f .env node src/scripts/bulk/run.ts",
     "prepare": "husky"
   },
   "dependencies": {
