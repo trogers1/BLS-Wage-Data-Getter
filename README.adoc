@@ -22,18 +22,36 @@ This project crawls BLS wage data by SOC (Standard Occupational Classification) 
 ----
 src/
 ├── db/
-│   ├── migrations/           # Database schema migrations
+│   ├── generated/           # Kysely-generated types
+│   ├── migrations/          # Database schema migrations
 │   ├── index.ts             # Database connection setup
 │   └── migrate.ts           # Migration runner
 ├── schemas/
-│   ├── index.ts             # TypeBox schemas
+│   ├── schemas.ts           # TypeBox schemas
 │   ├── validate.ts          # Response validation
 │   └── validation.test.ts   # Schema tests
 └── scripts/
-    ├── get_socs.ts          # Fetch SOC codes
-    ├── get_naics.ts         # Fetch NAICS codes
-    ├── crawl_wages.ts       # Crawl wage data
-    └── test_db_connection.ts
+    ├── apply_migrations.ts  # Run migrations via script
+    ├── constants.ts         # Shared script constants
+    ├── test_db_connection.ts
+    ├── get_socs/
+    │   ├── run.ts            # Fetch SOC codes
+    │   └── utils.ts
+    ├── get_naics/
+    │   ├── run.ts            # Fetch NAICS codes
+    │   └── utils.ts
+    └── crawl_wages/
+        ├── run.ts            # Crawl wage data
+        └── utils.ts
+└── test-utils/
+    ├── testDBManager.ts       # Test database lifecycle helpers
+    └── testDataSeeder/
+        ├── constants.ts       # Seeder defaults
+        ├── index.ts            # Seed orchestration
+        └── deterministicRandom/
+            ├── dRandom.ts      # Deterministic RNG
+            ├── hashing.ts      # Stable hashing helpers
+            └── overridableFieldHelpers.ts # Repeatable overrides
 ----
 
 == Database Schema
