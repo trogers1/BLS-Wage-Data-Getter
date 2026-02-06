@@ -3,13 +3,14 @@ import { Value } from "@sinclair/typebox/value";
 import { type Static } from "@sinclair/typebox";
 
 export class ValidationError extends Error {
-  constructor(
-    message: string,
-    public readonly errors: string[],
-    public readonly data: unknown
-  ) {
+  public readonly errors: string[];
+  public readonly data: unknown;
+
+  constructor(message: string, errors: string[], data: unknown) {
     super(message);
     this.name = "ValidationError";
+    this.errors = errors;
+    this.data = data;
   }
 }
 
