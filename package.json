@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "db:up": "docker-compose up -d",
+    "db:up": "docker compose up -d --wait",
     "db:down": "docker-compose down",
     "db:logs": "docker-compose logs -f",
     "db:migrate": "env-cmd -f .env node src/scripts/apply_migrations.ts",
