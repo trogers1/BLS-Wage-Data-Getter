@@ -1,7 +1,8 @@
 import { getDbInstance } from "../../db/index.ts";
-import type { OewsSeries, Wages } from "../../db/generated/db.d.ts";
+import type { Wages } from "../../db/generated/db.d.ts";
 import { TimeseriesResponse } from "../../schemas/index.ts";
 import { validateResponse } from "../../schemas/validate.ts";
+import { API_BASE_URL, WAGE_API_PATH } from "../constants.ts";
 
 // Helper type for creating series data - matches the pattern used in testDataSeeder
 type SeriesData = {
@@ -12,7 +13,14 @@ type SeriesData = {
   last_checked: Date | string;
 };
 
-function createSeriesId({ soc, naics }: { soc: string; naics: string }) {
+export type BLSWageRequestBody = {
+  seriesid: string[];
+  startyear: string;
+  endyear: string;
+  registrationkey: string;
+};
+
+export function createSeriesId({ soc, naics }: { soc: string; naics: string }) {
   // Remove hyphens and pad NAICS to 6 digits
   const naicsPart = naics.replace(/-/g, "").padStart(6, "0");
   const socPart = soc.replace("-", "");
@@ -28,8 +36,7 @@ export async function getWages({
   startYear: number;
   endYear: number;
 }): Promise<{ wages: Wages[]; oewsSeries: SeriesData[] }> {
-  const API_URL = "https://api.bls.gov/publicAPI/v2/timeseries/data/";
-  const API_KEY = process.env.BLS_API_KEY!;
+  const API_KEY = process.env.BLS_API_KEY;
 
   if (!API_KEY) {
     throw new Error("BLS_API_KEY environment variable is required");
@@ -79,17 +86,22 @@ export async function getWages({
       if (seriesIds.length === 0) {
         continue;
       }
+      const wageRequestBody: BLSWageRequestBody = {
+        seriesid: seriesIds,
+        startyear: startYear.toString(),
+        endyear: endYear.toString(),
+        registrationkey: API_KEY,
+      };
+      const fullURL = API_BASE_URL + WAGE_API_PATH;
+      console.log("making POST request to: ", API_BASE_URL + WAGE_API_PATH);
+      console.log("with body: ", JSON.stringify(wageRequestBody));
+      console.log("with headers: ", { "Content-Type": "application/json" });
 
       // Fetch wage data for this batch
-      const res = await fetch(API_URL, {
+      const res = await fetch(fullURL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          seriesid: seriesIds,
-          startyear: startYear.toString(),
-          endyear: endYear.toString(),
-          registrationkey: API_KEY,
-        }),
+        body: JSON.stringify(wageRequestBody),
       });
 
       const json = await res.json();
