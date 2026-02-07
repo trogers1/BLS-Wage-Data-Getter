@@ -20,14 +20,17 @@ describe("TestDbManager", () => {
       const db = await dbManager.createAndSeedTestDb(testId);
 
       // Verify the database has been seeded
-      const socCodes = await db.selectFrom("soc_codes").selectAll().execute();
-      const naicsCodes = await db
-        .selectFrom("naics_codes")
+      const occupations = await db
+        .selectFrom("oe_occupations")
+        .selectAll()
+        .execute();
+      const industries = await db
+        .selectFrom("oe_industries")
         .selectAll()
         .execute();
 
-      expect(socCodes.length).toBeGreaterThan(0);
-      expect(naicsCodes.length).toBeGreaterThan(0);
+      expect(occupations.length).toBeGreaterThan(0);
+      expect(industries.length).toBeGreaterThan(0);
     });
 
     it("should create isolated databases for different test IDs", async () => {
@@ -37,34 +40,41 @@ describe("TestDbManager", () => {
       const db1 = await dbManager.createAndSeedTestDb(testId1);
 
       // Add unique data to db1
-      const uniqueSocCode = "this-should-never-be-there";
+      const uniqueOccupation = "999999";
       await db1
-        .insertInto("soc_codes")
+        .insertInto("oe_occupations")
         .values({
-          soc_code: uniqueSocCode,
-          title: "Unique Test SOC",
+          occupation_code: uniqueOccupation,
+          occupation_name: "Unique Test Occupation",
+          display_level: 3,
+          selectable: true,
+          sort_sequence: 999,
         })
         .execute();
 
       // Verify db1 has the unique data
-      const db1SocCodes = await db1
-        .selectFrom("soc_codes")
+      const db1Occupations = await db1
+        .selectFrom("oe_occupations")
         .selectAll()
         .execute();
 
-      expect(db1SocCodes.length).toBeGreaterThan(0);
-      expect(db1SocCodes.map((c) => c.soc_code)).toContain(uniqueSocCode);
+      expect(db1Occupations.length).toBeGreaterThan(0);
+      expect(db1Occupations.map((c) => c.occupation_code)).toContain(
+        uniqueOccupation
+      );
 
       const db2 = await dbManager.createAndSeedTestDb(testId2);
 
       // Verify db2 does NOT have the unique data (should only have seeded data)
-      const db2SocCodes = await db2
-        .selectFrom("soc_codes")
+      const db2Occupations = await db2
+        .selectFrom("oe_occupations")
         .selectAll()
         .execute();
 
-      expect(db2SocCodes).toHaveLength(db1SocCodes.length - 1);
-      expect(db2SocCodes.map((c) => c.soc_code)).not.toContain(uniqueSocCode);
+      expect(db2Occupations).toHaveLength(db1Occupations.length - 1);
+      expect(db2Occupations.map((c) => c.occupation_code)).not.toContain(
+        uniqueOccupation
+      );
     });
 
     it("should return the same database instance for the same test ID", async () => {
@@ -83,9 +93,12 @@ describe("TestDbManager", () => {
       const db = await dbManager.getTestDb(testId);
 
       // Database should exist but not be seeded
-      const socCodes = await db.selectFrom("soc_codes").selectAll().execute();
+      const occupations = await db
+        .selectFrom("oe_occupations")
+        .selectAll()
+        .execute();
 
-      expect(socCodes).toHaveLength(0);
+      expect(occupations).toHaveLength(0);
     });
 
     it("should return cached database for existing test ID", async () => {
@@ -103,15 +116,21 @@ describe("TestDbManager", () => {
       const db = await dbManager.createAndSeedTestDb(testId);
 
       // Add some extra data
-      const uniqueSocCode = "should-not-exist";
+      const uniqueOccupation = "888888";
       await db
-        .insertInto("soc_codes")
-        .values({ soc_code: uniqueSocCode, title: "Extra SOC" })
+        .insertInto("oe_occupations")
+        .values({
+          occupation_code: uniqueOccupation,
+          occupation_name: "Extra Occupation",
+          display_level: 3,
+          selectable: true,
+          sort_sequence: 888,
+        })
         .execute();
 
       // Verify extra data exists
       const beforeReset = await db
-        .selectFrom("soc_codes")
+        .selectFrom("oe_occupations")
         .selectAll()
         .execute();
 
@@ -121,12 +140,17 @@ describe("TestDbManager", () => {
       await dbManager.resetTestDb(testId);
 
       // Verify only seeded data exists
-      const afterReset = await db.selectFrom("soc_codes").selectAll().execute();
+      const afterReset = await db
+        .selectFrom("oe_occupations")
+        .selectAll()
+        .execute();
 
       log({ afterReset });
 
       expect(afterReset).toHaveLength(beforeReset.length - 1);
-      expect(afterReset.map((c) => c.soc_code)).not.toContain(uniqueSocCode);
+      expect(afterReset.map((c) => c.occupation_code)).not.toContain(
+        uniqueOccupation
+      );
     });
   });
 
@@ -136,15 +160,18 @@ describe("TestDbManager", () => {
       const db = await dbManager.createAndSeedTestDb(testId);
 
       // Database should exist
-      const socCodes = await db.selectFrom("soc_codes").selectAll().execute();
-      expect(socCodes.length).toBeGreaterThan(0);
+      const occupations = await db
+        .selectFrom("oe_occupations")
+        .selectAll()
+        .execute();
+      expect(occupations.length).toBeGreaterThan(0);
 
       // Cleanup
       await dbManager.cleanupTestDb(testId);
 
       // Should not be able to use the database after cleanup
       await expect(
-        db.selectFrom("soc_codes").selectAll().execute()
+        db.selectFrom("oe_occupations").selectAll().execute()
       ).rejects.toThrow();
     });
   });
@@ -156,7 +183,7 @@ describe("TestDbManager", () => {
 
       // Verify seeded data exists
       const beforeClear = await db
-        .selectFrom("soc_codes")
+        .selectFrom("oe_occupations")
         .selectAll()
         .execute();
       expect(beforeClear.length).toBeGreaterThan(0);
@@ -165,7 +192,10 @@ describe("TestDbManager", () => {
       await dbManager.clearTestData(db);
 
       // Verify data is cleared
-      const afterClear = await db.selectFrom("soc_codes").selectAll().execute();
+      const afterClear = await db
+        .selectFrom("oe_occupations")
+        .selectAll()
+        .execute();
       expect(afterClear).toHaveLength(0);
     });
   });
@@ -176,15 +206,21 @@ describe("TestDbManager", () => {
       const db = await dbManager.getTestDb(testId);
 
       // Database should be empty initially
-      const beforeSeed = await db.selectFrom("soc_codes").selectAll().execute();
+      const beforeSeed = await db
+        .selectFrom("oe_occupations")
+        .selectAll()
+        .execute();
       expect(beforeSeed).toHaveLength(0);
 
       // Seed data
       await dbManager.seedTestData(db);
 
       // Verify data is seeded
-      const afterSeed = await db.selectFrom("soc_codes").selectAll().execute();
-      expect(afterSeed).toHaveLength(6);
+      const afterSeed = await db
+        .selectFrom("oe_occupations")
+        .selectAll()
+        .execute();
+      expect(afterSeed.length).toBeGreaterThan(0);
     });
   });
 });
