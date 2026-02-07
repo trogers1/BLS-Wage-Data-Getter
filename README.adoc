@@ -5,12 +5,12 @@ A TypeScript application for downloading and storing wage data from the U.S. Bur
 
 == Overview
 
-This project loads BLS OEWS data by SOC (Standard Occupational Classification) and NAICS (North American Industry Classification System) codes from the bulk time series files, storing the results in a PostgreSQL database for analysis and reporting.
+This project loads BLS OEWS data from the bulk time series files, storing the results in a PostgreSQL database for analysis and reporting.
 
 == Features
 
 * Downloads OEWS bulk files and caches them locally
-* Parses OEWS mapping files for SOCs, industries, areas, and datatypes
+* Parses OEWS mapping files for occupations, industries, areas, and datatypes
 * Loads OEWS series metadata and data values into PostgreSQL
 * Stores data in PostgreSQL with proper schema
 * Type-safe validation using TypeBox schemas
@@ -27,25 +27,23 @@ src/
 │   ├── index.ts             # Database connection setup
 │   └── migrate.ts           # Migration runner
 ├── schemas/
-│   ├── schemas.ts           # TypeBox schemas
-│   ├── validate.ts          # Response validation
+│   ├── bulk.ts              # TypeBox schemas for bulk files
+│   ├── validate.ts          # Data validation helpers
 │   └── validation.test.ts   # Schema tests
 └── scripts/
     ├── apply_migrations.ts  # Run migrations via script
     ├── constants.ts         # Shared script constants
+    ├── db_export.ts          # CSV export helper
     ├── test_db_connection.ts
     ├── bulk/
     │   ├── download.ts       # Download OEWS bulk files
     │   ├── ingest_mappings.ts # Load mapping tables
     │   ├── ingest_series.ts   # Load OEWS series metadata
     │   ├── ingest_data.ts     # Load OEWS data values
+    │   ├── parsers.ts         # Bulk file parsing helpers
     │   └── run.ts             # Download + ingest end-to-end
-    ├── get_socs/
-    │   ├── run.ts            # Fetch SOC codes
-    │   └── utils.ts
-    ├── get_naics/
-    │   ├── run.ts            # Fetch NAICS codes
-    │   └── utils.ts
+    ├── meaningfulness/
+    │   └── run.ts             # LLM scoring runner
 └── test-utils/
     ├── testDBManager.ts       # Test database lifecycle helpers
     └── testDataSeeder/
@@ -59,8 +57,6 @@ src/
 
 == Database Schema
 
-* `soc_codes` - Standard Occupational Classification codes (normalized)
-* `naics_codes` - NAICS codes with hierarchical levels (normalized)
 * `oe_occupations` - OEWS occupation mapping file
 * `oe_industries` - OEWS industry mapping file
 * `oe_areas` - OEWS area mapping file
@@ -72,6 +68,7 @@ src/
 * `oe_sectors` - OEWS sector definitions
 * `oe_series` - OEWS series metadata (bulk file)
 * `oe_data` - OEWS data values (bulk file)
+* `meaningfulness_scores` - LLM-scored occupation/industry meaningfulness
 
 == Prerequisites
 
@@ -129,6 +126,12 @@ npm run bulk:ingest
 +
 . This will download the latest OEWS files and load mappings, series metadata, and data values into the database.
 +
+. Ingestion order matters because of FK constraints. The `bulk:ingest` script enforces the correct order:
++
+* Mapping tables (areatypes -> areas -> datatypes -> sectors -> occupations -> industries)
+* Series metadata (`oe.series`)
+* Data values (`oe.data.0.Current`)
++
 . Use the mapping tables to interpret codes in `oe_series` and `oe_data`:
 +
 [source,sql]
@@ -150,13 +153,31 @@ join oe_areas a on a.area_code = s.area_code and a.state_code = s.state_code
 limit 25;
 ----
 +
-. The bulk ingest also populates normalized SOC and NAICS tables. You can refresh those tables independently:
+. Use the prefiltered view for analysis (latest year + mean annual wage only):
++
+[source,sql]
+----
+select *
+from occupation_industry_meaningfulness
+where meaningfulness_score is not null
+limit 25;
+----
++
+. Score occupation/industry meaningfulness in batches (skips already-scored pairs):
 +
 [source,bash]
 ----
-npm run get:socs
-npm run get:naics
+npm run meaningfulness:score
 ----
++
+. Export a table to CSV:
++
+[source,bash]
+----
+npm run db:export
+----
++
+. `db:export` defaults to `meaningfulness_scores`, and supports `EXPORT_TABLE`, `EXPORT_PATH`, and `EXPORT_BATCH_SIZE`.
 +
 . Explore the data with something like https://www.beekeeperstudio.io/[Beekeeper] or https://www.pgadmin.org/[pgAdmin]. You can use the config in `.env.example` to connect to the local database.
 . Spin down the database when you're finished
@@ -233,6 +254,12 @@ npm run db:codegen
 == Environment Variables
 
 * `DATABASE_URL` - PostgreSQL connection URL (defaults to local Docker container)
+* `OPENAI_API_KEY` - OpenAI API token used for meaningfulness scoring
+* `OPENAI_MODEL` - Model name for meaningfulness scoring (default `gpt-4.1-mini`)
+* `MEANINGFULNESS_BATCH_LIMIT` - Max pairs to score per run (default `50`)
+* `EXPORT_TABLE` - Table name to export (default `meaningfulness_scores`)
+* `EXPORT_PATH` - Output path for CSV export
+* `EXPORT_BATCH_SIZE` - Rows per export batch (default `5000`)
 * Tests load `.env.test` via env-cmd in the npm script; running Vitest directly will skip this
 
 == Technologies
