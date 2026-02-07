@@ -36,6 +36,12 @@ export async function up(db: Kysely<any>) {
     .addColumn("areatype_code", "text", (col) => col.notNull())
     .addColumn("area_name", "text", (col) => col.notNull())
     .addPrimaryKeyConstraint("oe_areas_pk", ["state_code", "area_code"])
+    .addForeignKeyConstraint(
+      "oe_areas_areatype_fk",
+      ["areatype_code"],
+      "oe_areatypes",
+      ["areatype_code"]
+    )
     .execute();
 
   await db.schema
@@ -91,6 +97,42 @@ export async function up(db: Kysely<any>) {
     .addColumn("begin_period", "text", (col) => col.notNull())
     .addColumn("end_year", "integer", (col) => col.notNull())
     .addColumn("end_period", "text", (col) => col.notNull())
+    .addForeignKeyConstraint(
+      "oe_series_occupation_fk",
+      ["occupation_code"],
+      "oe_occupations",
+      ["occupation_code"]
+    )
+    .addForeignKeyConstraint(
+      "oe_series_industry_fk",
+      ["industry_code"],
+      "oe_industries",
+      ["industry_code"]
+    )
+    .addForeignKeyConstraint(
+      "oe_series_datatype_fk",
+      ["datatype_code"],
+      "oe_datatypes",
+      ["datatype_code"]
+    )
+    .addForeignKeyConstraint(
+      "oe_series_sector_fk",
+      ["sector_code"],
+      "oe_sectors",
+      ["sector_code"]
+    )
+    .addForeignKeyConstraint(
+      "oe_series_areatype_fk",
+      ["areatype_code"],
+      "oe_areatypes",
+      ["areatype_code"]
+    )
+    .addForeignKeyConstraint(
+      "oe_series_area_fk",
+      ["state_code", "area_code"],
+      "oe_areas",
+      ["state_code", "area_code"]
+    )
     .execute();
 
   await db.schema
