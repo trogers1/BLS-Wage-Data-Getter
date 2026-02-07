@@ -10,6 +10,7 @@
     "db:migrate:force": "npm run db:down && rm -rf pgdata && npm run db:up && sleep 5 && npm run db:migrate && npm run db:codegen",
     "db:reset": "npm run db:down && rm -rf pgdata && npm run db:up && sleep 5 && npm run db:migrate",
     "db:clean": "npm run db:down && rm -rf pgdata",
+    "db:export": "env-cmd -f .env node src/scripts/db_export.ts",
     "db:codegen": "kysely-codegen --dialect postgres --url postgres://oews:oews@localhost:5432/oews --out-file src/db/generated/db.d.ts",
     "db:setup": "npm run db:up && npm run db:migrate && npm run db:codegen",
     "db:test:conn": "env-cmd -f .env node src/scripts/test_db_connection.ts",
@@ -18,13 +19,12 @@
     "test": "env-cmd -f .env.test vitest",
     "test:watch": "env-cmd -f .env.test vitest --watch",
     "test:coverage": "env-cmd -f .env.test vitest --coverage",
-    "get:socs": "env-cmd -f .env node src/scripts/get_socs/run.ts",
-    "get:naics": "env-cmd -f .env node src/scripts/get_naics/run.ts",
     "bulk:download": "env-cmd -f .env node src/scripts/bulk/download.ts",
     "bulk:ingest:mappings": "env-cmd -f .env node src/scripts/bulk/ingest_mappings.ts",
     "bulk:ingest:series": "env-cmd -f .env node src/scripts/bulk/ingest_series.ts",
     "bulk:ingest:data": "env-cmd -f .env node src/scripts/bulk/ingest_data.ts",
     "bulk:ingest": "env-cmd -f .env node src/scripts/bulk/run.ts",
+    "meaningfulness:score": "env-cmd -f .env node src/scripts/meaningfulness/run.ts",
     "prepare": "husky"
   },
   "dependencies": {
