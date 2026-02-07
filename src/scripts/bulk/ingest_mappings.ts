@@ -68,14 +68,6 @@ function parseTabFile(text: string) {
     .filter((line) => line.trim().length > 0);
 }
 
-function formatSocCode(code: string) {
-  if (/^\d{6}$/.test(code)) {
-    return `${code.slice(0, 2)}-${code.slice(2)}`;
-  }
-
-  return code;
-}
-
 async function ingestOccupations(db: ReturnType<typeof getDbInstance>) {
   const lines = parseTabFile(await readBulkFile("oe.occupation"));
   if (lines.length === 0) {
@@ -101,21 +93,6 @@ async function ingestOccupations(db: ReturnType<typeof getDbInstance>) {
     .values(validated)
     .onConflict((oc) => oc.column("occupation_code").doNothing())
     .execute();
-
-  const socRows = validated
-    .map((row) => ({
-      soc_code: formatSocCode(row.occupation_code),
-      title: row.occupation_name,
-    }))
-    .filter((row) => /^\d{2}-\d{4}$/.test(row.soc_code));
-
-  if (socRows.length > 0) {
-    await db
-      .insertInto("soc_codes")
-      .values(socRows)
-      .onConflict((oc) => oc.column("soc_code").doNothing())
-      .execute();
-  }
 }
 
 async function ingestIndustries(db: ReturnType<typeof getDbInstance>) {
@@ -143,27 +120,6 @@ async function ingestIndustries(db: ReturnType<typeof getDbInstance>) {
     .values(validated)
     .onConflict((oc) => oc.column("industry_code").doNothing())
     .execute();
-
-  const naicsRows = validated
-    .filter((row) => /^\d{6}$/.test(row.industry_code))
-    .map((row) => {
-      const level = row.display_level;
-      return {
-        naics_code: row.industry_code,
-        title: row.industry_name,
-        level,
-        parent_code: level > 2 ? row.industry_code.slice(0, level - 1) : null,
-      };
-    })
-    .filter((row) => row.level >= 2 && row.level <= 6);
-
-  if (naicsRows.length > 0) {
-    await db
-      .insertInto("naics_codes")
-      .values(naicsRows)
-      .onConflict((oc) => oc.column("naics_code").doNothing())
-      .execute();
-  }
 }
 
 async function ingestAreas(db: ReturnType<typeof getDbInstance>) {
@@ -330,12 +286,12 @@ export async function ingestMappingFiles() {
   const db = getDbInstance();
 
   try {
-    await ingestOccupations(db);
-    await ingestIndustries(db);
-    await ingestAreas(db);
     await ingestAreatypes(db);
+    await ingestAreas(db);
     await ingestDatatypes(db);
     await ingestSectors(db);
+    await ingestOccupations(db);
+    await ingestIndustries(db);
     await ingestFootnotes(db);
     await ingestReleases(db);
     await ingestSeasonal(db);

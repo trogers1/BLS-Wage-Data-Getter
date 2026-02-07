@@ -3,30 +3,9 @@ import { getDbInstance } from "../../db/index.ts";
 import { DataRow } from "../../schemas/bulk.ts";
 import { validate } from "../../schemas/validate.ts";
 import { createLineReader, getBulkFilePath } from "./utils.ts";
+import { parseDataLine } from "./parsers.ts";
 
 const DATA_BATCH_SIZE = 2000;
-
-function parseDataLine(line: string) {
-  const parts = line.trim().split(/\s+/);
-  if (parts.length < 4) {
-    throw new Error(`Invalid oe.data line: ${line}`);
-  }
-
-  const [seriesId, year, period, value, footnoteCodes] = parts;
-  const parsedYear = Number(year);
-  const parsedValue = Number(value);
-  if (Number.isNaN(parsedYear) || Number.isNaN(parsedValue)) {
-    throw new Error(`Invalid value in oe.data line: ${line}`);
-  }
-
-  return {
-    series_id: seriesId,
-    year: parsedYear,
-    period,
-    value: parsedValue,
-    footnote_codes: footnoteCodes ? footnoteCodes.trim() : null,
-  };
-}
 
 async function insertDataBatch(
   db: ReturnType<typeof getDbInstance>,
