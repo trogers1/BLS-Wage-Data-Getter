@@ -5,7 +5,7 @@ async function testConnection() {
   const db = getDbInstance();
   try {
     const result = await db
-      .selectFrom("soc_codes")
+      .selectFrom("oe_occupations")
       .selectAll()
       .limit(1)
       .execute();
