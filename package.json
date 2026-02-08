@@ -25,10 +25,12 @@
     "bulk:ingest:data": "env-cmd -f .env node src/scripts/bulk/ingest_data.ts",
     "bulk:ingest": "env-cmd -f .env node src/scripts/bulk/run.ts",
     "meaningfulness:score": "env-cmd -f .env node src/scripts/meaningfulness/run.ts",
+    "analysis:correlation": "env-cmd -f .env node src/scripts/analysis/run.ts",
     "prepare": "husky"
   },
   "dependencies": {
     "@sinclair/typebox": "^0.34.47",
+    "jstat": "^1.9.6",
     "kysely": "^0.28.9",
     "pg": "^8.16.3"
   },

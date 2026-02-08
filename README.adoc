@@ -271,6 +271,12 @@ npm run db:codegen
 * **Formatting**: Prettier
 * **Git Hooks**: Husky
 
+== To Do
+
+* Add https://github.com/DefinitelyTyped/DefinitelyTyped?tab=readme-ov-file#adding-tests-to-a-new-package[DefinitelyTyped] types to jstat instead of custom-written types
+
+
+
 == License
 
 MIT
