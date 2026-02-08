@@ -274,7 +274,7 @@ npm run db:codegen
 == To Do
 
 * Add https://github.com/DefinitelyTyped/DefinitelyTyped?tab=readme-ov-file#adding-tests-to-a-new-package[DefinitelyTyped] types to jstat instead of custom-written types
-
+* Should add test that meaningfulness scores are approx normal
 
 
 == License

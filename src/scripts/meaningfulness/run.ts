@@ -53,7 +53,7 @@ Occupation: ${occupationName}
 Industry: ${industryName}
 
 Return a JSON object with:
-- score: integer 1-5 (1 = least meaningful, 5 = most meaningful)
+- score: integer 1-5 (1 = least meaningful, 5 = most meaningful, should approximate a normal distribution)
 - reason: 1-2 sentences explaining the score
 `;
 
