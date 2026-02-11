@@ -1,63 +1,54 @@
-const PREFIX_FIELD_SPECS = [
-  { name: "series_id", length: 30 },
-  { name: "seasonal", length: 1 },
-  { name: "areatype_code", length: 1 },
-  { name: "industry_code", length: 6 },
-  { name: "occupation_code", length: 6 },
-  { name: "datatype_code", length: 2 },
-  { name: "state_code", length: 2 },
-  { name: "area_code", length: 7 },
-  { name: "sector_code", length: 6 },
-];
-
-const SERIES_SUFFIX_LENGTH = 10 + 4 + 3 + 4 + 3;
-
 export function parseSeriesLine(line: string) {
-  let cursor = 0;
-  const parsed: Record<string, string> = {};
+  // oe.series is tab-delimited
+  const parts = line.split("\t").map((p) => p.trim());
 
-  for (const spec of PREFIX_FIELD_SPECS) {
-    parsed[spec.name] = line.slice(cursor, cursor + spec.length).trim();
-    cursor += spec.length;
+  if (parts.length < 11) {
+    throw new Error(
+      `Invalid oe.series line (expected 11+ tab-delimited fields): ${line}`
+    );
   }
 
-  const suffixStart = Math.max(cursor, line.length - SERIES_SUFFIX_LENGTH);
-  const seriesTitle = line.slice(cursor, suffixStart).trim();
-  const suffix = line.slice(suffixStart);
+  const [
+    series_id,
+    seasonal,
+    areatype_code,
+    industry_code,
+    occupation_code,
+    datatype_code,
+    state_code,
+    area_code,
+    sector_code,
+    series_title,
+    footnote_codes,
+    begin_year_str,
+    begin_period,
+    end_year_str,
+    end_period,
+  ] = parts;
 
-  if (suffix.length < SERIES_SUFFIX_LENGTH) {
-    throw new Error(`Invalid oe.series line length: ${line}`);
-  }
+  const begin_year = Number(begin_year_str);
+  const end_year = Number(end_year_str);
 
-  const footnoteCodes = suffix.slice(0, 10).trim();
-  const beginYear = suffix.slice(10, 14).trim();
-  const beginPeriod = suffix.slice(14, 17).trim();
-  const endYear = suffix.slice(17, 21).trim();
-  const endPeriod = suffix.slice(21, 24).trim();
-
-  const beginYearValue = Number(beginYear);
-  const endYearValue = Number(endYear);
-
-  if (Number.isNaN(beginYearValue) || Number.isNaN(endYearValue)) {
+  if (Number.isNaN(begin_year) || Number.isNaN(end_year)) {
     throw new Error(`Invalid year in oe.series line: ${line}`);
   }
 
   return {
-    series_id: parsed.series_id,
-    seasonal: parsed.seasonal,
-    areatype_code: parsed.areatype_code,
-    industry_code: parsed.industry_code,
-    occupation_code: parsed.occupation_code,
-    datatype_code: parsed.datatype_code,
-    state_code: parsed.state_code,
-    area_code: parsed.area_code,
-    sector_code: parsed.sector_code,
-    series_title: seriesTitle,
-    footnote_codes: footnoteCodes.length > 0 ? footnoteCodes : null,
-    begin_year: beginYearValue,
-    begin_period: beginPeriod,
-    end_year: endYearValue,
-    end_period: endPeriod,
+    series_id,
+    seasonal,
+    areatype_code,
+    industry_code,
+    occupation_code,
+    datatype_code,
+    state_code,
+    area_code,
+    sector_code,
+    series_title,
+    footnote_codes: footnote_codes?.length > 0 ? footnote_codes : null,
+    begin_year,
+    begin_period,
+    end_year,
+    end_period,
   };
 }
 

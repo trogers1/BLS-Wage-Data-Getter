@@ -117,14 +117,21 @@ This command:
 npm run db:test:conn
 ----
 +
-. Download and ingest OEWS bulk files:
+. Download OEWS bulk files (this may take a while - some files are ~1.5GB):
++
+[source,bash]
+----
+npm run bulk:download
+----
++
+. Ingest the downloaded data into the database:
 +
 [source,bash]
 ----
 npm run bulk:ingest
 ----
 +
-. This will download the latest OEWS files and load mappings, series metadata, and data values into the database.
+. The ingest script will skip downloading if files already exist and load mappings, series metadata, and data values into the database.
 +
 . Ingestion order matters because of FK constraints. The `bulk:ingest` script enforces the correct order:
 +
