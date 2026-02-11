@@ -1,4 +1,5 @@
 import { getDbInstance } from "../../db/index.ts";
+import * as readline from "readline";
 
 const DEFAULT_MODEL = "gpt-4.1-mini";
 const PROMPT_VERSION = "v1";
@@ -90,6 +91,17 @@ Return a JSON object with:
   return parsed;
 }
 
+function askToContinue(rl: readline.Interface): Promise<boolean> {
+  return new Promise((resolve) => {
+    rl.question("Continue with next batch? (y/n): ", (answer) => {
+      resolve(
+        answer.toLowerCase().trim() === "y" ||
+          answer.toLowerCase().trim() === "yes"
+      );
+    });
+  });
+}
+
 async function run() {
   const apiKey = getEnv("OPENAI_API_KEY");
   const model = process.env.OPENAI_MODEL ?? DEFAULT_MODEL;
@@ -100,77 +112,138 @@ async function run() {
   }
 
   const db = getDbInstance();
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
 
   try {
-    const pairs = await db
+    // Get total count of unscored pairs
+    const totalCountResult = await db
       .selectFrom("oe_series as s")
-      .innerJoin(
-        "oe_occupations as o",
-        "o.occupation_code",
-        "s.occupation_code"
-      )
-      .innerJoin("oe_industries as i", "i.industry_code", "s.industry_code")
       .leftJoin("meaningfulness_scores as m", (join) =>
         join
           .onRef("m.occupation_code", "=", "s.occupation_code")
           .onRef("m.industry_code", "=", "s.industry_code")
           .on("m.prompt_version", "=", PROMPT_VERSION)
       )
-      .select((eb) => [
-        eb.ref("s.occupation_code").as("occupation_code"),
-        eb.ref("s.industry_code").as("industry_code"),
-        eb.ref("o.occupation_name").as("occupation_name"),
-        eb.ref("i.industry_name").as("industry_name"),
-      ])
+      .select((eb) => eb.fn.count("s.series_id").as("count"))
       .where("m.id", "is", null)
-      .groupBy([
-        "s.occupation_code",
-        "s.industry_code",
-        "o.occupation_name",
-        "i.industry_name",
-      ])
-      .limit(batchLimit)
-      .execute();
+      .executeTakeFirst();
 
-    if (pairs.length === 0) {
+    const totalUnscored = Number(totalCountResult?.count ?? 0);
+
+    if (totalUnscored === 0) {
       console.log("No unscored occupation/industry pairs found.");
       return;
     }
 
-    for (const pair of pairs) {
-      const result = await callOpenAI({
-        apiKey,
-        model,
-        occupationName: pair.occupation_name,
-        industryName: pair.industry_name,
-      });
+    console.log(`\nTotal occupation/industry pairs to score: ${totalUnscored}`);
+    console.log(`Batch size: ${batchLimit}`);
+    console.log(
+      `Estimated batches needed: ${Math.ceil(totalUnscored / batchLimit)}\n`
+    );
 
-      await db
-        .insertInto("meaningfulness_scores")
-        .values({
-          occupation_code: pair.occupation_code,
-          industry_code: pair.industry_code,
-          score: result.score,
-          reason: result.reason,
-          model,
-          prompt_version: PROMPT_VERSION,
-          source_inputs: {
-            occupation: pair.occupation_name,
-            industry: pair.industry_name,
-          },
-        })
-        .onConflict((oc) =>
-          oc
-            .columns(["occupation_code", "industry_code", "prompt_version"])
-            .doNothing()
+    let scoredCount = 0;
+    let shouldContinue = true;
+
+    while (shouldContinue && scoredCount < totalUnscored) {
+      // Get batch of unscored pairs
+      const pairs = await db
+        .selectFrom("oe_series as s")
+        .innerJoin(
+          "oe_occupations as o",
+          "o.occupation_code",
+          "s.occupation_code"
         )
+        .innerJoin("oe_industries as i", "i.industry_code", "s.industry_code")
+        .leftJoin("meaningfulness_scores as m", (join) =>
+          join
+            .onRef("m.occupation_code", "=", "s.occupation_code")
+            .onRef("m.industry_code", "=", "s.industry_code")
+            .on("m.prompt_version", "=", PROMPT_VERSION)
+        )
+        .select((eb) => [
+          eb.ref("s.occupation_code").as("occupation_code"),
+          eb.ref("s.industry_code").as("industry_code"),
+          eb.ref("o.occupation_name").as("occupation_name"),
+          eb.ref("i.industry_name").as("industry_name"),
+        ])
+        .where("m.id", "is", null)
+        .groupBy([
+          "s.occupation_code",
+          "s.industry_code",
+          "o.occupation_name",
+          "i.industry_name",
+        ])
+        .limit(batchLimit)
         .execute();
 
+      if (pairs.length === 0) {
+        console.log("\nNo more unscored pairs found.");
+        break;
+      }
+
+      // Process the batch
+      for (const pair of pairs) {
+        const result = await callOpenAI({
+          apiKey,
+          model,
+          occupationName: pair.occupation_name,
+          industryName: pair.industry_name,
+        });
+
+        await db
+          .insertInto("meaningfulness_scores")
+          .values({
+            occupation_code: pair.occupation_code,
+            industry_code: pair.industry_code,
+            score: result.score,
+            reason: result.reason,
+            model,
+            prompt_version: PROMPT_VERSION,
+            source_inputs: {
+              occupation: pair.occupation_name,
+              industry: pair.industry_name,
+            },
+          })
+          .onConflict((oc) =>
+            oc
+              .columns(["occupation_code", "industry_code", "prompt_version"])
+              .doNothing()
+          )
+          .execute();
+
+        console.log(
+          `Scored ${pair.occupation_code}/${pair.industry_code} -> ${result.score}`
+        );
+      }
+
+      scoredCount += pairs.length;
+      const remaining = totalUnscored - scoredCount;
+      const percentComplete = ((scoredCount / totalUnscored) * 100).toFixed(1);
+
+      console.log(`\n========== BATCH COMPLETE ==========`);
+      console.log(`Scored this batch: ${pairs.length}`);
       console.log(
-        `Scored ${pair.occupation_code}/${pair.industry_code} -> ${result.score}`
+        `Total scored: ${scoredCount} / ${totalUnscored} (${percentComplete}%)`
       );
+      console.log(`Remaining: ${remaining}`);
+      console.log(`=====================================\n`);
+
+      if (remaining > 0) {
+        shouldContinue = await askToContinue(rl);
+        if (!shouldContinue) {
+          console.log("\nScoring paused. Run again later to continue.");
+        }
+      }
+    }
+
+    if (scoredCount >= totalUnscored) {
+      console.log("\n✓ All occupation/industry pairs have been scored!");
     }
   } finally {
+    rl.close();
     await db.destroy();
   }
 }
