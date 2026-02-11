@@ -3,7 +3,6 @@ import { createWriteStream } from "node:fs";
 import path from "node:path";
 import { Pool } from "pg";
 
-const DEFAULT_TABLE = "meaningfulness_scores";
 const DEFAULT_BATCH_SIZE = 5000;
 
 const ALLOWED_TABLES = new Set([
@@ -21,7 +20,7 @@ const ALLOWED_TABLES = new Set([
   "oe_sectors",
 ]);
 
-function csvEscape(value: unknown) {
+export function csvEscape(value: unknown) {
   if (value === null || value === undefined) {
     return "";
   }
@@ -34,7 +33,7 @@ function csvEscape(value: unknown) {
   return stringValue;
 }
 
-async function getColumns(pool: Pool, table: string) {
+export async function getColumns(pool: Pool, table: string) {
   const result = await pool.query(
     `
       select column_name
@@ -48,31 +47,14 @@ async function getColumns(pool: Pool, table: string) {
   return result.rows.map((row) => row.column_name as string);
 }
 
-async function exportTable() {
-  const table = process.env.EXPORT_TABLE ?? DEFAULT_TABLE;
-  if (!ALLOWED_TABLES.has(table)) {
-    throw new Error(
-      `Unsupported EXPORT_TABLE: ${table}. Allowed: ${[...ALLOWED_TABLES].join(
-        ", "
-      )}`
-    );
-  }
-
-  const outputPath =
-    process.env.EXPORT_PATH ??
-    path.resolve(process.cwd(), "data", "exports", `${table}.csv`);
-  const batchSize = Number(process.env.EXPORT_BATCH_SIZE ?? DEFAULT_BATCH_SIZE);
-  if (!Number.isFinite(batchSize) || batchSize <= 0) {
-    throw new Error(`Invalid EXPORT_BATCH_SIZE: ${batchSize}`);
-  }
-
+export async function exportTableToCSV(
+  pool: Pool,
+  table: string,
+  outputPath: string,
+  batchSize: number
+): Promise<number> {
   await mkdir(path.dirname(outputPath), { recursive: true });
   await writeFile(outputPath, "");
-
-  const pool = new Pool({
-    connectionString:
-      process.env.DATABASE_URL ?? "postgres://oews:oews@localhost:5432/oews",
-  });
 
   const stream = createWriteStream(outputPath, { flags: "a" });
 
@@ -85,6 +67,7 @@ async function exportTable() {
     stream.write(`${columns.join(",")}\n`);
 
     let offset = 0;
+    let totalRows = 0;
     while (true) {
       const result = await pool.query(
         `select ${columns.join(", ")} from ${table} order by 1 limit $1 offset $2`,
@@ -101,13 +84,44 @@ async function exportTable() {
       }
 
       offset += result.rows.length;
+      totalRows += result.rows.length;
     }
+
+    return totalRows;
   } finally {
     stream.end();
-    await pool.end();
   }
-
-  console.log(`Exported ${table} to ${outputPath}`);
 }
 
-await exportTable();
+async function main() {
+  const table = process.env.BACKUP_TABLE ?? "meaningfulness_scores";
+  if (!ALLOWED_TABLES.has(table)) {
+    throw new Error(
+      `Unsupported BACKUP_TABLE: ${table}. Allowed: ${[...ALLOWED_TABLES].join(
+        ", "
+      )}`
+    );
+  }
+
+  const outputPath =
+    process.env.BACKUP_PATH ??
+    path.resolve(process.cwd(), "data", "exports", `${table}.csv`);
+  const batchSize = Number(process.env.BACKUP_BATCH_SIZE ?? DEFAULT_BATCH_SIZE);
+  if (!Number.isFinite(batchSize) || batchSize <= 0) {
+    throw new Error(`Invalid BACKUP_BATCH_SIZE: ${batchSize}`);
+  }
+
+  const pool = new Pool({
+    connectionString:
+      process.env.DATABASE_URL ?? "postgres://oews:oews@localhost:5432/oews",
+  });
+
+  try {
+    const rowCount = await exportTableToCSV(pool, table, outputPath, batchSize);
+    console.log(`Exported ${rowCount} rows from ${table} to ${outputPath}`);
+  } finally {
+    await pool.end();
+  }
+}
+
+await main();

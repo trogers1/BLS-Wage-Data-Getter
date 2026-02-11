@@ -170,14 +170,30 @@ limit 25;
 npm run meaningfulness:score
 ----
 +
-. Export a table to CSV:
+. Export a single table to CSV:
 +
 [source,bash]
 ----
-npm run db:export
+npm run db:backup:table
 ----
 +
-. `db:export` defaults to `meaningfulness_scores`, and supports `EXPORT_TABLE`, `EXPORT_PATH`, and `EXPORT_BATCH_SIZE`.
+. `db:backup:table` defaults to `meaningfulness_scores`, and supports `BACKUP_TABLE`, `BACKUP_PATH`, and `BACKUP_BATCH_SIZE`.
++
+. Backup all tables (for restoring later):
++
+[source,bash]
+----
+npm run db:backup
+----
++
+. Restore all tables from backup:
++
+[source,bash]
+----
+npm run db:restore
+----
++
+. `db:backup` and `db:restore` support `BACKUP_DIR` and `BACKUP_BATCH_SIZE` environment variables.
 +
 . Explore the data with something like https://www.beekeeperstudio.io/[Beekeeper] or https://www.pgadmin.org/[pgAdmin]. You can use the config in `.env.example` to connect to the local database.
 . Spin down the database when you're finished
@@ -257,9 +273,11 @@ npm run db:codegen
 * `OPENAI_API_KEY` - OpenAI API token used for meaningfulness scoring
 * `OPENAI_MODEL` - Model name for meaningfulness scoring (default `gpt-4.1-mini`)
 * `MEANINGFULNESS_BATCH_LIMIT` - Max pairs to score per run (default `50`)
-* `EXPORT_TABLE` - Table name to export (default `meaningfulness_scores`)
-* `EXPORT_PATH` - Output path for CSV export
-* `EXPORT_BATCH_SIZE` - Rows per export batch (default `5000`)
+* `BACKUP_TABLE` - Table name to export (default `meaningfulness_scores`)
+* `BACKUP_PATH` - Output path for single table CSV export
+* `BACKUP_DIR` - Directory for full backup/restore
+* `BACKUP_BATCH_SIZE` - Rows per export batch (default `5000`)
+* `RESTORE_BATCH_SIZE` - Rows per import batch during restore (default `1000`)
 * Tests load `.env.test` via env-cmd in the npm script; running Vitest directly will skip this
 
 == Technologies
