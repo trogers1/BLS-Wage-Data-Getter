@@ -162,6 +162,13 @@ join oe_areas a on a.area_code = s.area_code and a.state_code = s.state_code
 limit 25;
 ----
 +
+. Score occupation/industry meaningfulness in batches (skips already-scored pairs):
++
+[source,bash]
+----
+npm run meaningfulness:score
+----
++
 . Use the prefiltered view for analysis (latest year + mean annual wage only):
 +
 [source,sql]
@@ -170,13 +177,6 @@ select *
 from occupation_industry_meaningfulness
 where meaningfulness_score is not null
 limit 25;
-----
-+
-. Score occupation/industry meaningfulness in batches (skips already-scored pairs):
-+
-[source,bash]
-----
-npm run meaningfulness:score
 ----
 +
 . Export a single table to CSV:
