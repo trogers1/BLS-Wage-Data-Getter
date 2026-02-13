@@ -2,6 +2,7 @@ export const OE_OCCUPATIONS = [
   {
     occupation_code: "111011",
     occupation_name: "Chief Executives",
+    occupation_description: null,
     display_level: 3,
     selectable: true,
     sort_sequence: 1,
@@ -9,6 +10,7 @@ export const OE_OCCUPATIONS = [
   {
     occupation_code: "151252",
     occupation_name: "Software Developers",
+    occupation_description: null,
     display_level: 3,
     selectable: true,
     sort_sequence: 2,

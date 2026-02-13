@@ -177,6 +177,7 @@ export class TestDataSeeder {
           .padStart(4, "0")}`,
         occupation_name:
           occupationNames[(seedHash + i) % occupationNames.length],
+        occupation_description: null,
         display_level: 3,
         selectable: true,
         sort_sequence: i + 1,

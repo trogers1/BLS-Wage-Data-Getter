@@ -20,11 +20,14 @@ describe("bulk parsers", () => {
   });
 
   it("should parse oe.data line", () => {
-    const parsed = parseDataLine("OEUN0000000111101110103 2023 A01 85000");
+    // Real data sample from BLS oe.data.0.Current file (tab-delimited)
+    const parsed = parseDataLine(
+      "OEUM001018000000000000009     \t2024\tA01\t      29.34\t"
+    );
 
-    expect(parsed.series_id).toBe("OEUN0000000111101110103");
-    expect(parsed.year).toBe(2023);
+    expect(parsed.series_id).toBe("OEUM001018000000000000009");
+    expect(parsed.year).toBe(2024);
     expect(parsed.period).toBe("A01");
-    expect(parsed.value).toBe(85000);
+    expect(parsed.value).toBe(29.34);
   });
 });
