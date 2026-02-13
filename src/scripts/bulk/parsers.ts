@@ -53,23 +53,30 @@ export function parseSeriesLine(line: string) {
 }
 
 export function parseDataLine(line: string) {
-  const parts = line.trim().split(/\s+/);
+  // oe.data.0.Current is tab-delimited
+  const parts = line.split("\t").map((p) => p.trim());
+
   if (parts.length < 4) {
-    throw new Error(`Invalid oe.data line: ${line}`);
+    throw new Error(
+      `Invalid oe.data line (expected 4+ tab-delimited fields): ${line}`
+    );
   }
 
-  const [seriesId, year, period, value, footnoteCodes] = parts;
-  const parsedYear = Number(year);
-  const parsedValue = Number(value);
-  if (Number.isNaN(parsedYear) || Number.isNaN(parsedValue)) {
-    throw new Error(`Invalid value in oe.data line: ${line}`);
+  const [series_id, year_str, period, value_str, footnote_codes] = parts;
+  const year = Number(year_str);
+
+  // Handle suppressed/missing values (marked with "-")
+  const value = value_str === "-" ? null : Number(value_str);
+
+  if (Number.isNaN(year)) {
+    throw new Error(`Invalid year in oe.data line: ${line}`);
   }
 
   return {
-    series_id: seriesId,
-    year: parsedYear,
+    series_id,
+    year,
     period,
-    value: parsedValue,
-    footnote_codes: footnoteCodes ? footnoteCodes.trim() : null,
+    value,
+    footnote_codes: footnote_codes?.length > 0 ? footnote_codes : null,
   };
 }
