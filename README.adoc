@@ -139,7 +139,7 @@ npm run bulk:ingest
 * Series metadata (`oe.series`) - only national-level data (state_code = "00")
 * Data values (`oe.data.0.Current`) - only for series_ids in oe_series
 +
-NOTE: For performance, only national-level series (state_code = "00") are ingested (~800K series instead of ~6M). Data rows are filtered to match existing series_ids. This reduces data volume by ~80% while preserving all data needed for national-level analysis.
+NOTE: For performance, only national-level series (state_code = "00") are ingested (~2M series instead of ~6M). Data rows are filtered to match existing series_ids. This reduces data volume by ~67% while preserving all data needed for national-level analysis.
 +
 . Use the mapping tables to interpret codes in `oe_series` and `oe_data`:
 +
