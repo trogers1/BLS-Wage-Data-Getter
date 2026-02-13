@@ -290,6 +290,41 @@ npm run db:codegen
 * `RESTORE_BATCH_SIZE` - Rows per import batch during restore (default `1000`)
 * Tests load `.env.test` via env-cmd in the npm script; running Vitest directly will skip this
 
+== Meaningfulness Scoring Costs
+
+*Note: Pricing estimates are current as of February 2026 and subject to change.*
+
+=== Default Configuration
+The meaningfulness scoring script uses OpenAI's GPT-4.1 mini by default (set via `OPENAI_MODEL` environment variable).
+
+=== Cost Breakdown
+
+With **~135,000 unique occupation/industry pairs** in the national-level dataset:
+
+[cols="2,1,1,1",options="header"]
+|===
+| Component | Tokens/Request | Rate | Cost
+| Input (system prompt + occupation + description + industry) | ~250 tokens | $0.40/M | $13.50
+| Output (JSON score + reason) | ~75 tokens | $1.60/M | $16.20
+| **Total Estimated Cost** | | | **~$30 USD**
+|===
+
+=== Cost-Saving Tips
+
+. **Use GPT-4.1 mini** (default) - Best balance of cost and quality for this task
+. **Keep batch size at 50** (default) - Allows quality review between batches
+. **Score incrementally** - Run multiple times; already-scored pairs are skipped automatically
+
+=== Alternative Models
+
+If you need higher quality reasoning:
+
+* **GPT-4.1**: ~$150 total (5x cost) - Better reasoning but likely overkill for this use case
+* **GPT-4.1 nano**: Even cheaper, but may lack nuance for complex occupations
+
+=== Rate Limits
+GPT-4.1 mini supports 150+ requests/second throughput, so the full dataset can be scored in under 15 minutes if run continuously.
+
 == Technologies
 
 * **Runtime**: Node.js
