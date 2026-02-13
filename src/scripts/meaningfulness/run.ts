@@ -2,7 +2,7 @@ import { getDbInstance } from "../../db/index.ts";
 import * as readline from "readline";
 
 const DEFAULT_MODEL = "gpt-4.1-mini";
-const PROMPT_VERSION = "v1";
+const PROMPT_VERSION = "v2";
 
 type MeaningfulnessScore = {
   score: number;
@@ -41,17 +41,28 @@ async function callOpenAI({
   apiKey,
   model,
   occupationName,
+  occupationDescription,
   industryName,
 }: {
   apiKey: string;
   model: string;
   occupationName: string;
+  occupationDescription: string | null;
   industryName: string;
 }): Promise<MeaningfulnessScore> {
+  const descriptionSection = occupationDescription
+    ? `\nOccupation Description: ${occupationDescription}`
+    : "";
+
   const prompt = `You are rating how meaningful a job is in a specific industry context.
 
-Occupation: ${occupationName}
+Occupation: ${occupationName}${descriptionSection}
 Industry: ${industryName}
+
+Consider:
+- How much the occupation contributes to society or others' wellbeing
+- Whether the work has a clear purpose or impact
+- How well the industry context enables meaningful work
 
 Return a JSON object with:
 - score: integer 1-5 (1 = least meaningful, 5 = most meaningful, should approximate a normal distribution)
@@ -167,6 +178,7 @@ async function run() {
           eb.ref("s.occupation_code").as("occupation_code"),
           eb.ref("s.industry_code").as("industry_code"),
           eb.ref("o.occupation_name").as("occupation_name"),
+          eb.ref("o.occupation_description").as("occupation_description"),
           eb.ref("i.industry_name").as("industry_name"),
         ])
         .where("m.id", "is", null)
@@ -174,6 +186,7 @@ async function run() {
           "s.occupation_code",
           "s.industry_code",
           "o.occupation_name",
+          "o.occupation_description",
           "i.industry_name",
         ])
         .limit(batchLimit)
@@ -190,6 +203,7 @@ async function run() {
           apiKey,
           model,
           occupationName: pair.occupation_name,
+          occupationDescription: pair.occupation_description,
           industryName: pair.industry_name,
         });
 
@@ -204,6 +218,7 @@ async function run() {
             prompt_version: PROMPT_VERSION,
             source_inputs: {
               occupation: pair.occupation_name,
+              occupation_description: pair.occupation_description,
               industry: pair.industry_name,
             },
           })
