@@ -5,7 +5,7 @@ import { validate } from "../../schemas/validate.ts";
 import { createLineReader, getBulkFilePath } from "./utils.ts";
 import { parseSeriesLine } from "./parsers.ts";
 
-const SERIES_BATCH_SIZE = 1000;
+const SERIES_BATCH_SIZE = Number(process.env.INGEST_BATCH_SIZE) || 1000;
 
 async function insertSeriesBatch(
   db: ReturnType<typeof getDbInstance>,
@@ -42,7 +42,14 @@ export async function ingestSeriesFile() {
         continue;
       }
 
-      batch.push(parseSeriesLine(line));
+      const parsed = parseSeriesLine(line);
+
+      // Filter to national-level data only (state_code === "00")
+      if (parsed.state_code !== "00") {
+        continue;
+      }
+
+      batch.push(parsed);
       if (batch.length >= SERIES_BATCH_SIZE) {
         await insertSeriesBatch(db, batch);
         batch = [];
@@ -56,5 +63,3 @@ export async function ingestSeriesFile() {
     await db.destroy();
   }
 }
-
-await ingestSeriesFile();
