@@ -6,6 +6,7 @@ export async function up(db: Kysely<any>) {
     .ifNotExists()
     .addColumn("occupation_code", "text", (col) => col.primaryKey())
     .addColumn("occupation_name", "text", (col) => col.notNull())
+    .addColumn("occupation_description", "text")
     .addColumn("display_level", "integer", (col) => col.notNull())
     .addColumn("selectable", "boolean", (col) => col.notNull())
     .addColumn("sort_sequence", "integer", (col) => col.notNull())
@@ -141,7 +142,7 @@ export async function up(db: Kysely<any>) {
     .addColumn("series_id", "text", (col) => col.notNull())
     .addColumn("year", "integer", (col) => col.notNull())
     .addColumn("period", "text", (col) => col.notNull())
-    .addColumn("value", "numeric", (col) => col.notNull())
+    .addColumn("value", "numeric")
     .addColumn("footnote_codes", "text")
     .addPrimaryKeyConstraint("oe_data_pk", ["series_id", "year", "period"])
     .addForeignKeyConstraint("oe_data_series_fk", ["series_id"], "oe_series", [

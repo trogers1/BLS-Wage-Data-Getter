@@ -24,6 +24,7 @@ const TAB_HEADER = {
   "oe.occupation": [
     "occupation_code",
     "occupation_name",
+    "occupation_description",
     "display_level",
     "selectable",
     "sort_sequence",
@@ -76,10 +77,12 @@ async function ingestOccupations(db: ReturnType<typeof getDbInstance>) {
   assertHeader("oe.occupation", parseTabLine(lines[0]));
 
   const rows = lines.slice(1).map((line) => {
-    const [code, name, level, selectable, sort] = parseTabLine(line);
+    const [code, name, description, level, selectable, sort] =
+      parseTabLine(line);
     return {
       occupation_code: code,
       occupation_name: name,
+      occupation_description: description?.length > 0 ? description : null,
       display_level: toNumber(level, "display_level"),
       selectable: toBoolean(selectable),
       sort_sequence: toNumber(sort, "sort_sequence"),

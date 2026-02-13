@@ -4,6 +4,7 @@ export const OccupationRow = Type.Object(
   {
     occupation_code: Type.String(),
     occupation_name: Type.String(),
+    occupation_description: Type.Union([Type.String(), Type.Null()]),
     display_level: Type.Number(),
     selectable: Type.Boolean(),
     sort_sequence: Type.Number(),
@@ -106,7 +107,7 @@ export const DataRow = Type.Object(
     series_id: Type.String(),
     year: Type.Number(),
     period: Type.String(),
-    value: Type.Number(),
+    value: Type.Union([Type.Number(), Type.Null()]),
     footnote_codes: Type.Union([Type.String(), Type.Null()]),
   },
   { additionalProperties: false }
