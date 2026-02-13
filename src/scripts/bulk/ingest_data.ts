@@ -5,7 +5,7 @@ import { validate } from "../../schemas/validate.ts";
 import { createLineReader, getBulkFilePath } from "./utils.ts";
 import { parseDataLine } from "./parsers.ts";
 
-const DATA_BATCH_SIZE = 2000;
+const DATA_BATCH_SIZE = Number(process.env.INGEST_BATCH_SIZE) || 2000;
 
 async function insertDataBatch(
   db: ReturnType<typeof getDbInstance>,
@@ -22,11 +22,25 @@ async function insertDataBatch(
 
 export async function ingestDataFile() {
   const filePath = getBulkFilePath("oe.data.0.Current");
-  const reader = createLineReader(filePath);
+
+  // Load series IDs FIRST before opening the file stream
+  // This prevents file stream buffering issues while waiting for DB query
   const db = getDbInstance();
+  const seriesRows = await db
+    .selectFrom("oe_series")
+    .select("series_id")
+    .execute();
+  const validSeriesIds = new Set(seriesRows.map((r) => r.series_id));
+  console.log(
+    `Loaded ${validSeriesIds.size} series_ids from oe_series for filtering`
+  );
+
+  // NOW open the file stream after series are loaded
+  const reader = createLineReader(filePath);
 
   let isHeader = true;
   let batch: ReturnType<typeof parseDataLine>[] = [];
+  let skippedCount = 0;
 
   try {
     for await (const line of reader) {
@@ -42,7 +56,15 @@ export async function ingestDataFile() {
         continue;
       }
 
-      batch.push(parseDataLine(line));
+      const parsed = parseDataLine(line);
+
+      // Filter: Only ingest data rows where series_id exists in oe_series
+      if (!validSeriesIds.has(parsed.series_id)) {
+        skippedCount++;
+        continue;
+      }
+
+      batch.push(parsed);
       if (batch.length >= DATA_BATCH_SIZE) {
         await insertDataBatch(db, batch);
         batch = [];
@@ -52,9 +74,11 @@ export async function ingestDataFile() {
     if (batch.length > 0) {
       await insertDataBatch(db, batch);
     }
+
+    console.log(
+      `Skipped ${skippedCount} data rows (series_id not in oe_series)`
+    );
   } finally {
     await db.destroy();
   }
 }
-
-await ingestDataFile();
