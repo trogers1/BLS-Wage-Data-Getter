@@ -136,8 +136,10 @@ npm run bulk:ingest
 . Ingestion order matters because of FK constraints. The `bulk:ingest` script enforces the correct order:
 +
 * Mapping tables (areatypes -> areas -> datatypes -> sectors -> occupations -> industries)
-* Series metadata (`oe.series`)
-* Data values (`oe.data.0.Current`)
+* Series metadata (`oe.series`) - only national-level data (state_code = "00")
+* Data values (`oe.data.0.Current`) - only for series_ids in oe_series
++
+NOTE: For performance, only national-level series (state_code = "00") are ingested (~800K series instead of ~6M). Data rows are filtered to match existing series_ids. This reduces data volume by ~80% while preserving all data needed for national-level analysis.
 +
 . Use the mapping tables to interpret codes in `oe_series` and `oe_data`:
 +
@@ -280,6 +282,7 @@ npm run db:codegen
 * `OPENAI_API_KEY` - OpenAI API token used for meaningfulness scoring
 * `OPENAI_MODEL` - Model name for meaningfulness scoring (default `gpt-4.1-mini`)
 * `MEANINGFULNESS_BATCH_LIMIT` - Max pairs to score per run (default `50`)
+* `INGEST_BATCH_SIZE` - Batch size for series and data ingestion (default `1000` for series, `2000` for data)
 * `BACKUP_TABLE` - Table name to export (default `meaningfulness_scores`)
 * `BACKUP_PATH` - Output path for single table CSV export
 * `BACKUP_DIR` - Directory for full backup/restore
